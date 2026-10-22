@@ -17,6 +17,10 @@ import {
   Sun,
   Moon,
   Palette,
+  Minus,
+  Plus,
+  Mail,
+  ChevronRight,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -61,8 +65,18 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [age, setAge] = useState(profile.age);
   const [gender, setGender] = useState<Gender>(profile.gender);
   const [heightCm, setHeightCm] = useState(profile.heightCm);
+
+  // Imperial height helper states
+  const initialFtIn = cmToFtIn(profile.heightCm);
+  const [heightFeet, setHeightFeet] = useState(initialFtIn.feet);
+  const [heightInches, setHeightInches] = useState(initialFtIn.inches);
+
   const [currentWeightKg, setCurrentWeightKg] = useState(profile.currentWeightKg);
+  const [weightLbs, setWeightLbs] = useState(Math.round(kgToLb(profile.currentWeightKg)));
+
   const [targetWeightKg, setTargetWeightKg] = useState(profile.targetWeightKg);
+  const [targetWeightLbs, setTargetWeightLbs] = useState(Math.round(kgToLb(profile.targetWeightKg)));
+
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(profile.activityLevel);
   const [goal, setGoal] = useState<FitnessGoal>(profile.goal);
   const [targetPaceKgPerWeek, setTargetPaceKgPerWeek] = useState(profile.targetPaceKgPerWeek);
@@ -85,6 +99,13 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
 
   const handleUnitToggle = (newUnit: UnitSystem) => {
     setUnitSystem(newUnit);
+    if (newUnit === 'imperial') {
+      const fi = cmToFtIn(heightCm);
+      setHeightFeet(fi.feet);
+      setHeightInches(fi.inches);
+      setWeightLbs(Math.round(kgToLb(currentWeightKg)));
+      setTargetWeightLbs(Math.round(kgToLb(targetWeightKg)));
+    }
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -228,157 +249,690 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
       />
 
       {/* Profile Form */}
-      <form onSubmit={handleSave} className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-5">
-        <h4 className="text-lg font-bold text-slate-900 tracking-tight pb-3 border-b border-slate-200">
+      <form onSubmit={handleSave} className="clay-card rounded-clay-card p-6 sm:p-7 space-y-7">
+        <h4 className="text-xl sm:text-2xl font-heading font-black text-clay-text dark:text-white tracking-tight pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
           Metabolic & Demographic Settings
         </h4>
 
+        {/* Name and Email */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
-            />
+            <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider mb-2">
+              Full Name
+            </label>
+            <div className="relative flex items-center">
+              <div className="absolute left-3 w-8 h-8 rounded-full clay-pebble flex items-center justify-center text-slate-500 pointer-events-none">
+                <User className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="clay-input w-full pl-13 pr-4 py-3.5 text-sm font-bold text-clay-text dark:text-white rounded-2xl"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
-            />
+            <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider mb-2">
+              Email Address
+            </label>
+            <div className="relative flex items-center">
+              <div className="absolute left-3 w-8 h-8 rounded-full clay-pebble flex items-center justify-center text-slate-500 pointer-events-none">
+                <Mail className="w-4 h-4" />
+              </div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="clay-input w-full pl-13 pr-4 py-3.5 text-sm font-bold text-clay-text dark:text-white rounded-2xl"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Age</label>
-            <input
-              type="number"
-              min={14}
-              max={100}
-              value={age}
-              onChange={(e) => setAge(Number(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-mono focus:outline-none focus:border-emerald-500 focus:bg-white"
-            />
+        {/* Age & Biological Sex in Clay Tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
+          {/* Age Stepper */}
+          <div className="p-4 rounded-2xl clay-card-flat space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
+                Age
+              </label>
+              <span className="text-xs font-bold text-slate-400">Years old</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setAge(Math.max(14, age - 1))}
+                className="w-11 h-11 rounded-2xl clay-btn flex items-center justify-center text-clay-text dark:text-slate-200 active:scale-95 transition"
+                aria-label="Decrease age"
+              >
+                <Minus className="w-5 h-5 stroke-[2.5]" />
+              </button>
+              <div className="clay-sunken flex-1 py-2 px-3 rounded-2xl text-center">
+                <span className="text-3xl font-heading font-black text-clay-text dark:text-white font-mono">
+                  {age}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAge(Math.min(100, age + 1))}
+                className="w-11 h-11 rounded-2xl clay-btn flex items-center justify-center text-clay-text dark:text-slate-200 active:scale-95 transition"
+                aria-label="Increase age"
+              >
+                <Plus className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
+            {/* Quick jump chips */}
+            <div className="flex justify-between gap-1.5 pt-1">
+              {[18, 24, 30, 40, 50].map((quickAge) => (
+                <button
+                  key={quickAge}
+                  type="button"
+                  onClick={() => setAge(quickAge)}
+                  className={`flex-1 py-1 text-xs rounded-xl font-mono font-bold transition active:scale-95 ${
+                    age === quickAge
+                      ? 'clay-btn-lime font-black'
+                      : 'clay-btn text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {quickAge}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Biological Sex</label>
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value as Gender)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Height ({unitSystem === 'metric' ? 'cm' : 'cm (equiv)'})
-            </label>
-            <input
-              type="number"
-              min={100}
-              max={230}
-              value={heightCm}
-              onChange={(e) => setHeightCm(Number(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-mono focus:outline-none focus:border-emerald-500 focus:bg-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Current Weight ({unitSystem === 'metric' ? 'kg' : 'kg'})
-            </label>
-            <input
-              type="number"
-              step={0.1}
-              min={35}
-              max={250}
-              value={currentWeightKg}
-              onChange={(e) => setCurrentWeightKg(Number(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-mono focus:outline-none focus:border-emerald-500 focus:bg-white"
-            />
+          {/* Biological Sex Clay Segments */}
+          <div className="p-4 rounded-2xl clay-card-flat space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
+                Biological Sex
+              </label>
+              <span className="text-xs font-bold text-slate-400">For BMR equation</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'male' as Gender, label: 'Male', icon: '♂' },
+                { id: 'female' as Gender, label: 'Female', icon: '♀' },
+                { id: 'other' as Gender, label: 'Other', icon: '⚥' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setGender(item.id)}
+                  className={`py-3 px-2 rounded-2xl text-center flex flex-col items-center justify-center transition active:scale-95 ${
+                    gender === item.id
+                      ? 'clay-btn-lime font-black'
+                      : 'clay-btn text-slate-700 dark:text-slate-200'
+                  }`}
+                >
+                  <span className="text-lg leading-none font-bold mb-1">{item.icon}</span>
+                  <span className="text-xs font-heading font-black">{item.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 font-bold">
+              Mifflin-St Jeor formula applies biological factors for basal metabolic burn.
+            </p>
           </div>
         </div>
 
-        {/* Goals & Pace */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Fitness Goal</label>
-            <select
-              value={goal}
-              onChange={(e) => setGoal(e.target.value as FitnessGoal)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
-            >
-              <option value="lose">Lose Fat (Calorie Deficit)</option>
-              <option value="maintain">Maintain Body Weight</option>
-              <option value="gain">Build Mass (Lean Surplus)</option>
-            </select>
+        {/* Height & Current Weight Sliders */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
+          {/* Height Picker */}
+          <div className="p-4 rounded-2xl clay-card-flat space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
+                Stature (Height)
+              </label>
+              <div className="clay-sunken px-3 py-1 rounded-xl text-clay-sky-dark dark:text-clay-sky font-black font-mono text-base">
+                {unitSystem === 'metric'
+                  ? `${heightCm} cm`
+                  : `${heightFeet}′ ${heightInches}″ (${heightCm} cm)`}
+              </div>
+            </div>
+
+            {unitSystem === 'metric' ? (
+              <>
+                <input
+                  type="range"
+                  min={120}
+                  max={230}
+                  step={1}
+                  value={heightCm}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setHeightCm(val);
+                    const fi = cmToFtIn(val);
+                    setHeightFeet(fi.feet);
+                    setHeightInches(fi.inches);
+                  }}
+                  className="clay-range my-2"
+                />
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.max(120, heightCm - 5);
+                        setHeightCm(v);
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      -5cm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.max(120, heightCm - 1);
+                        setHeightCm(v);
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      -1cm
+                    </button>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.min(230, heightCm + 1);
+                        setHeightCm(v);
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      +1cm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.min(230, heightCm + 5);
+                        setHeightCm(v);
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      +5cm
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between clay-sunken p-2.5 rounded-2xl">
+                    <span className="text-xs font-bold text-slate-400 pl-1">Feet</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newFt = Math.max(3, heightFeet - 1);
+                          setHeightFeet(newFt);
+                          setHeightCm(ftInToCm(newFt, heightInches));
+                        }}
+                        className="w-8 h-8 rounded-xl clay-btn flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 active:scale-90"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono font-black text-lg w-7 text-center text-clay-text dark:text-white">
+                        {heightFeet}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newFt = Math.min(7, heightFeet + 1);
+                          setHeightFeet(newFt);
+                          setHeightCm(ftInToCm(newFt, heightInches));
+                        }}
+                        className="w-8 h-8 rounded-xl clay-btn flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 active:scale-90"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between clay-sunken p-2.5 rounded-2xl">
+                    <span className="text-xs font-bold text-slate-400 pl-1">Inches</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newIn = heightInches === 0 ? 11 : heightInches - 1;
+                          setHeightInches(newIn);
+                          setHeightCm(ftInToCm(heightFeet, newIn));
+                        }}
+                        className="w-8 h-8 rounded-xl clay-btn flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 active:scale-90"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono font-black text-lg w-7 text-center text-clay-text dark:text-white">
+                        {heightInches}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newIn = heightInches === 11 ? 0 : heightInches + 1;
+                          setHeightInches(newIn);
+                          setHeightCm(ftInToCm(heightFeet, newIn));
+                        }}
+                        className="w-8 h-8 rounded-xl clay-btn flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 active:scale-90"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Target Weight (kg)</label>
-            <input
-              type="number"
-              step={0.5}
-              min={35}
-              max={250}
-              value={targetWeightKg}
-              onChange={(e) => setTargetWeightKg(Number(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-mono focus:outline-none focus:border-emerald-500 focus:bg-white"
-            />
-          </div>
+          {/* Current Weight Picker */}
+          <div className="p-4 rounded-2xl clay-card-flat space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
+                Current Weight
+              </label>
+              <div className="clay-sunken px-3 py-1 rounded-xl text-clay-lime-dark dark:text-clay-lime font-black font-mono text-base">
+                {unitSystem === 'metric'
+                  ? `${currentWeightKg} kg`
+                  : `${weightLbs} lbs`}
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Pace ({targetPaceKgPerWeek} kg/week)
-            </label>
-            <input
-              type="range"
-              min={0.2}
-              max={1.0}
-              step={0.1}
-              value={targetPaceKgPerWeek}
-              onChange={(e) => setTargetPaceKgPerWeek(Number(e.target.value))}
-              className="w-full accent-emerald-500 cursor-pointer mt-2"
-            />
+            {unitSystem === 'metric' ? (
+              <>
+                <input
+                  type="range"
+                  min={40}
+                  max={180}
+                  step={0.5}
+                  value={currentWeightKg}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setCurrentWeightKg(val);
+                    setWeightLbs(Math.round(kgToLb(val)));
+                  }}
+                  className="clay-range my-2"
+                />
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.max(40, Math.round((currentWeightKg - 2) * 10) / 10);
+                        setCurrentWeightKg(v);
+                        setWeightLbs(Math.round(kgToLb(v)));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      -2kg
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.max(40, Math.round((currentWeightKg - 0.5) * 10) / 10);
+                        setCurrentWeightKg(v);
+                        setWeightLbs(Math.round(kgToLb(v)));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      -0.5kg
+                    </button>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.min(180, Math.round((currentWeightKg + 0.5) * 10) / 10);
+                        setCurrentWeightKg(v);
+                        setWeightLbs(Math.round(kgToLb(v)));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      +0.5kg
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.min(180, Math.round((currentWeightKg + 2) * 10) / 10);
+                        setCurrentWeightKg(v);
+                        setWeightLbs(Math.round(kgToLb(v)));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      +2kg
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <input
+                  type="range"
+                  min={90}
+                  max={400}
+                  step={1}
+                  value={weightLbs}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setWeightLbs(val);
+                    setCurrentWeightKg(lbToKg(val));
+                  }}
+                  className="clay-range my-2"
+                />
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.max(90, weightLbs - 5);
+                        setWeightLbs(v);
+                        setCurrentWeightKg(lbToKg(v));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      -5lbs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.max(90, weightLbs - 1);
+                        setWeightLbs(v);
+                        setCurrentWeightKg(lbToKg(v));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      -1lb
+                    </button>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.min(400, weightLbs + 1);
+                        setWeightLbs(v);
+                        setCurrentWeightKg(lbToKg(v));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      +1lb
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = Math.min(400, weightLbs + 5);
+                        setWeightLbs(v);
+                        setCurrentWeightKg(lbToKg(v));
+                      }}
+                      className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                      +5lbs
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Live Recomputed Blueprint preview */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        {/* Fitness Goal & Target Weight */}
+        <div className="space-y-4 pt-1">
           <div>
-            <span className="text-[10px] uppercase font-semibold text-slate-500 block">BMR</span>
-            <span className="text-base font-bold text-slate-900">{previewCalc.bmr} kcal</span>
+            <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider mb-2">
+              Fitness Goal
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {[
+                { id: 'lose' as FitnessGoal, label: 'Lose Fat', desc: 'Calorie Deficit' },
+                { id: 'maintain' as FitnessGoal, label: 'Maintain', desc: 'Energy Balance' },
+                { id: 'gain' as FitnessGoal, label: 'Build Mass', desc: 'Lean Surplus' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setGoal(item.id)}
+                  className={`p-3.5 rounded-2xl text-left transition flex items-center justify-between active:scale-95 ${
+                    goal === item.id
+                      ? 'clay-btn-lime font-black'
+                      : 'clay-card-flat text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div>
+                    <span className="font-heading font-black text-sm block">{item.label}</span>
+                    <span className="text-[11px] font-bold opacity-80 block">{item.desc}</span>
+                  </div>
+                  {goal === item.id && (
+                    <div className="w-6 h-6 rounded-full clay-pebble flex items-center justify-center text-slate-900">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Target Weight and Deficit Pace Controls */}
+          {goal !== 'maintain' && (
+            <div className="p-4 rounded-2xl clay-card-flat space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
+                    Target Goal Weight
+                  </label>
+                  <span className="text-xs font-bold text-slate-400">
+                    Fit range ({unitSystem === 'metric' ? `${previewCalc.idealWeightRangeKg.min} - ${previewCalc.idealWeightRangeKg.max} kg` : `${kgToLb(previewCalc.idealWeightRangeKg.min)} - ${kgToLb(previewCalc.idealWeightRangeKg.max)} lbs`})
+                  </span>
+                </div>
+                <div className="clay-sunken px-3.5 py-1.5 rounded-2xl text-clay-lime-dark dark:text-clay-lime font-black font-mono text-base">
+                  {unitSystem === 'metric'
+                    ? `${targetWeightKg} kg`
+                    : `${targetWeightLbs} lbs`}
+                </div>
+              </div>
+
+              {unitSystem === 'metric' ? (
+                <>
+                  <input
+                    type="range"
+                    min={40}
+                    max={160}
+                    step={0.5}
+                    value={targetWeightKg}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setTargetWeightKg(v);
+                      setTargetWeightLbs(Math.round(kgToLb(v)));
+                    }}
+                    className="clay-range my-2"
+                  />
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.max(40, Math.round((targetWeightKg - 2) * 10) / 10);
+                          setTargetWeightKg(v);
+                          setTargetWeightLbs(Math.round(kgToLb(v)));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        -2kg
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.max(40, Math.round((targetWeightKg - 0.5) * 10) / 10);
+                          setTargetWeightKg(v);
+                          setTargetWeightLbs(Math.round(kgToLb(v)));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        -0.5kg
+                      </button>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.min(160, Math.round((targetWeightKg + 0.5) * 10) / 10);
+                          setTargetWeightKg(v);
+                          setTargetWeightLbs(Math.round(kgToLb(v)));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        +0.5kg
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.min(160, Math.round((targetWeightKg + 2) * 10) / 10);
+                          setTargetWeightKg(v);
+                          setTargetWeightLbs(Math.round(kgToLb(v)));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        +2kg
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="range"
+                    min={90}
+                    max={350}
+                    step={1}
+                    value={targetWeightLbs}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setTargetWeightLbs(v);
+                      setTargetWeightKg(lbToKg(v));
+                    }}
+                    className="clay-range my-2"
+                  />
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.max(90, targetWeightLbs - 5);
+                          setTargetWeightLbs(v);
+                          setTargetWeightKg(lbToKg(v));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        -5lbs
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.max(90, targetWeightLbs - 1);
+                          setTargetWeightLbs(v);
+                          setTargetWeightKg(lbToKg(v));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        -1lb
+                      </button>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.min(350, targetWeightLbs + 1);
+                          setTargetWeightLbs(v);
+                          setTargetWeightKg(lbToKg(v));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        +1lb
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = Math.min(350, targetWeightLbs + 5);
+                          setTargetWeightLbs(v);
+                          setTargetWeightKg(lbToKg(v));
+                        }}
+                        className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                      >
+                        +5lbs
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Deficit Pace Slider */}
+              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
+                    Weekly Pace: <span className="text-clay-text dark:text-white font-mono">{targetPaceKgPerWeek} kg/wk</span>
+                  </span>
+                  <span className="text-xs text-clay-lime-dark dark:text-clay-lime font-mono font-black clay-sunken px-2.5 py-0.5 rounded-lg">
+                    ~{Math.round((7700 * targetPaceKgPerWeek) / 7)} kcal/day
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={1.0}
+                  step={0.1}
+                  value={targetPaceKgPerWeek}
+                  onChange={(e) => setTargetPaceKgPerWeek(Number(e.target.value))}
+                  className="clay-range my-2"
+                />
+                <div className="grid grid-cols-4 gap-1.5 mt-2">
+                  {[
+                    { val: 0.2, label: '0.2 Gentle' },
+                    { val: 0.5, label: '0.5 Optimal' },
+                    { val: 0.8, label: '0.8 Steady' },
+                    { val: 1.0, label: '1.0 Fast' },
+                  ].map((item) => (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => setTargetPaceKgPerWeek(item.val)}
+                      className={`py-1.5 px-1 rounded-xl text-[11px] font-bold text-center transition active:scale-95 ${
+                        targetPaceKgPerWeek === item.val
+                          ? 'clay-btn-lime font-black'
+                          : 'clay-btn text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Live Recomputed Blueprint preview in Sunken Groove */}
+        <div className="p-4 rounded-2xl clay-sunken grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div>
+            <span className="text-[10px] uppercase font-heading font-black text-clay-text/60 dark:text-slate-400 block">BMR</span>
+            <span className="text-base font-heading font-black text-clay-text dark:text-white font-mono">{previewCalc.bmr} kcal</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase font-semibold text-slate-500 block">TDEE</span>
-            <span className="text-base font-bold text-slate-900">{previewCalc.tdee} kcal</span>
+            <span className="text-[10px] uppercase font-heading font-black text-clay-text/60 dark:text-slate-400 block">TDEE</span>
+            <span className="text-base font-heading font-black text-clay-text dark:text-white font-mono">{previewCalc.tdee} kcal</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase font-semibold text-slate-500 block">Daily Target</span>
-            <span className="text-base font-extrabold text-emerald-600">{previewCalc.dailyCalorieTarget} kcal</span>
+            <span className="text-[10px] uppercase font-heading font-black text-clay-lime-dark dark:text-clay-lime block">Daily Target</span>
+            <span className="text-base font-heading font-black text-clay-lime-dark dark:text-clay-lime font-mono">{previewCalc.dailyCalorieTarget} kcal</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase font-semibold text-slate-500 block">Safety Floor</span>
-            <span className="text-base font-bold text-teal-700">{previewCalc.safetyFloor} kcal</span>
+            <span className="text-[10px] uppercase font-heading font-black text-clay-sky-dark dark:text-clay-sky block">Safety Floor</span>
+            <span className="text-base font-heading font-black text-clay-sky-dark dark:text-clay-sky font-mono">{previewCalc.safetyFloor} kcal</span>
           </div>
         </div>
 
         {/* Optional Gemini API Key */}
-        <div className="pt-2 border-t border-slate-200">
-          <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-            <Key className="w-3.5 h-3.5 text-emerald-600" />
+        <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+          <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-2 flex items-center gap-1.5">
+            <Key className="w-3.5 h-3.5 text-clay-lime-dark" />
             <span>Optional Custom Gemini Vision API Key</span>
           </label>
           <input
@@ -386,17 +940,17 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             value={geminiApiKey}
             onChange={(e) => setGeminiApiKey(e.target.value)}
             placeholder="AIzaSy... (leave blank to use built-in simulator)"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 font-mono focus:outline-none focus:border-emerald-500 focus:bg-white"
+            className="clay-input w-full px-4 py-3 text-xs text-clay-text dark:text-white placeholder:text-clay-text/40 font-mono rounded-2xl"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition shadow-sm"
+          className="w-full py-4 rounded-clay-btn clay-btn-lime text-clay-text font-heading font-black flex items-center justify-center gap-2 active:scale-95 transition text-sm shadow-md"
         >
           {saveSuccess ? (
             <>
-              <Check className="w-4 h-4 stroke-[3]" />
+              <Check className="w-5 h-5 stroke-[3]" />
               <span>Saved Successfully!</span>
             </>
           ) : (
@@ -406,22 +960,22 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
       </form>
 
       {/* Data Management */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-4">
-        <h4 className="text-lg font-bold text-slate-900 tracking-tight pb-2 border-b border-slate-200">
+      <div className="clay-card rounded-clay-card p-6 sm:p-7 space-y-5">
+        <h4 className="text-xl sm:text-2xl font-heading font-black text-clay-text dark:text-white tracking-tight pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
           Data Backup & Management
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={handleExportData}
-            className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition"
+            className="p-3.5 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition"
           >
-            <Download className="w-4 h-4 text-emerald-600" />
+            <Download className="w-4 h-4 text-clay-lime-dark" />
             <span>Export Backup</span>
           </button>
 
-          <label className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
-            <Upload className="w-4 h-4 text-teal-600" />
+          <label className="p-3.5 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer">
+            <Upload className="w-4 h-4 text-clay-sky-dark" />
             <span>Import Backup</span>
             <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
           </label>
@@ -433,22 +987,22 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                   onResetAllData();
                 }
               }}
-              className="p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-2 transition"
+              className="p-3.5 rounded-clay-btn clay-btn text-rose-500 font-heading font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition"
             >
-              <RotateCcw className="w-4 h-4 text-rose-600" />
+              <RotateCcw className="w-4 h-4" />
               <span>Reset All Data</span>
             </button>
           )}
         </div>
 
         {/* Disclaimer button */}
-        <div className="pt-2 flex justify-between items-center text-xs border-t border-slate-100">
-          <span className="text-slate-500">Legal & Clinical Guidance</span>
+        <div className="pt-3 flex justify-between items-center text-xs border-t border-slate-200/60 dark:border-slate-700/60">
+          <span className="text-clay-text/60 dark:text-slate-400 font-sans">Legal & Clinical Guidance</span>
           <button
             onClick={onOpenDisclaimer}
-            className="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1"
+            className="text-clay-lime-dark dark:text-clay-lime font-heading font-black flex items-center gap-1.5 hover:underline"
           >
-            <ShieldAlert className="w-3.5 h-3.5" />
+            <ShieldAlert className="w-4 h-4" />
             <span>Read Health Disclaimer</span>
           </button>
         </div>

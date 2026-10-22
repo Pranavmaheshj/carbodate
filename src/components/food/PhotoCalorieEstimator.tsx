@@ -136,29 +136,29 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-xl bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl relative text-left my-6 max-h-[90vh] flex flex-col"
+            className="w-full max-w-xl clay-card rounded-clay-card p-6 sm:p-7 shadow-2xl relative text-left my-6 max-h-[90vh] flex flex-col"
           >
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition z-10"
+              className="absolute top-5 right-5 clay-pebble w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition z-10"
               aria-label="Close photo estimator"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
             {/* Header */}
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold">
+              <div className="w-11 h-11 rounded-2xl clay-pebble text-lime-600 dark:text-lime-400 flex items-center justify-center font-bold">
                 <Camera className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 font-display flex items-center gap-2">
                   <span>Photo Calorie Estimation</span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold uppercase">
+                  <span className="text-[10px] clay-btn-lime px-2.5 py-0.5 rounded-full font-black uppercase">
                     AI Vision
                   </span>
                 </h3>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs font-bold text-slate-400">
                   Visual macro & calorie breakdown from meal photos
                 </span>
               </div>
@@ -169,7 +169,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                 <div className="space-y-4">
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-3xl p-8 text-center cursor-pointer transition bg-slate-50 hover:bg-slate-100 group"
+                    className="clay-sunken rounded-3xl p-8 text-center cursor-pointer transition group hover:ring-2 hover:ring-lime-400/50"
                   >
                     <input
                       ref={fileInputRef}
@@ -179,19 +179,19 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                       className="hidden"
                       onChange={handleFileChange}
                     />
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition-transform">
+                    <div className="w-14 h-14 rounded-2xl clay-pebble text-lime-600 dark:text-lime-400 flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition-transform">
                       <Upload className="w-7 h-7" />
                     </div>
-                    <span className="font-bold text-slate-900 text-sm block">
+                    <span className="font-black text-slate-800 dark:text-slate-100 text-sm block font-display">
                       Take Photo or Upload Meal Image
                     </span>
-                    <span className="text-xs text-slate-500 mt-1 block">
+                    <span className="text-xs font-bold text-slate-400 mt-1 block">
                       Supports JPG, PNG, WEBP camera captures
                     </span>
                   </div>
 
                   <div>
-                    <span className="text-xs text-slate-500 block mb-2 font-medium">
+                    <span className="text-xs font-bold text-slate-400 block mb-2 font-display">
                       Or select a sample meal photo for instant preview:
                     </span>
                     <div className="grid grid-cols-3 gap-2">
@@ -200,14 +200,14 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                           key={p.name}
                           type="button"
                           onClick={() => handleSelectPreset(p.url)}
-                          className="rounded-xl overflow-hidden border border-slate-200 hover:border-emerald-500 transition group relative text-left"
+                          className="clay-card-flat rounded-2xl overflow-hidden hover:scale-[1.02] transition group relative text-left"
                         >
                           <img
                             src={p.url}
                             alt={p.name}
                             className="h-16 w-full object-cover group-hover:scale-105 transition-transform"
                           />
-                          <div className="p-1.5 bg-white text-[10px] font-bold text-slate-900 truncate">
+                          <div className="p-2 text-[10px] font-black text-slate-800 dark:text-slate-100 truncate font-display">
                             {p.name}
                           </div>
                         </button>
@@ -218,7 +218,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
               ) : (
                 <div className="space-y-4">
                   {/* Photo Preview with Laser Scanner Animation */}
-                  <div className="relative rounded-2xl overflow-hidden h-44 w-full border border-slate-200 bg-slate-100">
+                  <div className="relative rounded-2xl overflow-hidden h-44 w-full clay-sunken">
                     <img
                       src={imagePreview}
                       alt="Meal Preview"
@@ -227,7 +227,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
 
                     {isScanning && (
                       <motion.div
-                        className="absolute inset-x-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400 shadow-md"
+                        className="absolute inset-x-0 h-1.5 bg-[#B8F25B] shadow-lg"
                         initial={{ top: '0%' }}
                         animate={{ top: ['0%', '100%', '0%'] }}
                         transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
@@ -239,7 +239,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                         setImagePreview(null);
                         setScanResult(null);
                       }}
-                      className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white text-slate-700 rounded-full transition shadow"
+                      className="absolute top-2 right-2 clay-pebble w-8 h-8 rounded-full text-slate-600 dark:text-slate-300 flex items-center justify-center transition shadow"
                       aria-label="Change photo"
                     >
                       <X className="w-4 h-4" />
@@ -247,12 +247,12 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                   </div>
 
                   {isScanning && (
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-1">
-                      <Sparkles className="w-6 h-6 text-emerald-600 mx-auto animate-spin-slow" />
-                      <span className="font-bold text-emerald-900 text-sm block">
+                    <div className="p-4 rounded-2xl clay-sunken text-center space-y-1">
+                      <Sparkles className="w-6 h-6 text-lime-500 mx-auto animate-spin" />
+                      <span className="font-black text-slate-800 dark:text-slate-100 text-sm block font-display">
                         Analyzing Food Ingredients...
                       </span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs font-bold text-slate-400">
                         Identifying meal items, calories, and macronutrients
                       </span>
                     </div>
@@ -263,30 +263,30 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                       {/* Meal Title & Meal Type Picker */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                          <label className="block text-[11px] font-black text-slate-500 dark:text-slate-400 font-display uppercase tracking-wider mb-1">
                             Meal Title
                           </label>
                           <input
                             type="text"
                             value={mealTitle}
                             onChange={(e) => setMealTitle(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white font-bold"
+                            className="clay-input w-full rounded-2xl px-3 py-2 text-sm text-slate-800 dark:text-slate-100 font-bold border-none"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                          <label className="block text-[11px] font-black text-slate-500 dark:text-slate-400 font-display uppercase tracking-wider mb-1">
                             Log As
                           </label>
                           <select
                             value={selectedMealType}
                             onChange={(e) => setSelectedMealType(e.target.value as MealType)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white capitalize font-semibold"
+                            className="clay-input w-full rounded-2xl px-3 py-2 text-sm text-slate-800 dark:text-slate-100 capitalize font-bold border-none cursor-pointer"
                           >
-                            <option value="breakfast">Breakfast</option>
-                            <option value="lunch">Lunch</option>
-                            <option value="dinner">Dinner</option>
-                            <option value="snack">Snack</option>
+                            <option value="breakfast" className="bg-white dark:bg-slate-800">Breakfast</option>
+                            <option value="lunch" className="bg-white dark:bg-slate-800">Lunch</option>
+                            <option value="dinner" className="bg-white dark:bg-slate-800">Dinner</option>
+                            <option value="snack" className="bg-white dark:bg-slate-800">Snack</option>
                           </select>
                         </div>
                       </div>
@@ -294,14 +294,14 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                       {/* Detected Items */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          <span className="text-xs font-black text-slate-500 dark:text-slate-400 font-display uppercase tracking-wider">
                             Detected Ingredients (Editable)
                           </span>
                           <button
                             onClick={handleAddItem}
-                            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                            className="clay-btn-lime px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1 active:scale-95"
                           >
-                            <Plus className="w-3.5 h-3.5" /> Add Item
+                            <Plus className="w-3.5 h-3.5" /> Add
                           </button>
                         </div>
 
@@ -309,46 +309,46 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                           {editableItems.map((item, idx) => (
                             <div
                               key={idx}
-                              className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                              className="p-3.5 rounded-2xl clay-card-flat flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                             >
                               <div className="flex-1">
                                 <input
                                   type="text"
                                   value={item.name}
                                   onChange={(e) => handleUpdateItem(idx, 'name', e.target.value)}
-                                  className="w-full bg-transparent font-bold text-slate-900 text-sm focus:outline-none"
+                                  className="w-full bg-transparent font-black text-slate-800 dark:text-slate-100 text-sm focus:outline-none font-display"
                                 />
                                 <input
                                   type="text"
                                   value={item.portion}
                                   onChange={(e) => handleUpdateItem(idx, 'portion', e.target.value)}
-                                  className="text-slate-500 bg-transparent text-xs focus:outline-none"
+                                  className="text-slate-400 font-bold bg-transparent text-xs focus:outline-none"
                                 />
                               </div>
 
                               <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200">
-                                  <span className="text-slate-500 text-[10px]">kcal:</span>
+                                <div className="flex items-center gap-1 clay-sunken px-2 py-1 rounded-xl">
+                                  <span className="text-slate-400 font-bold text-[10px]">kcal:</span>
                                   <input
                                     type="number"
                                     value={item.calories}
                                     onChange={(e) => handleUpdateItem(idx, 'calories', Number(e.target.value))}
-                                    className="w-12 bg-transparent text-amber-700 font-bold text-center focus:outline-none"
+                                    className="w-12 bg-transparent text-coral-600 dark:text-coral-400 font-mono font-black text-center focus:outline-none"
                                   />
                                 </div>
 
-                                <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 text-[11px]">
-                                  <span className="text-rose-600 font-bold">{item.protein}P</span>
-                                  <span className="text-amber-600 font-bold">{item.carbs}C</span>
-                                  <span className="text-teal-600 font-bold">{item.fat}F</span>
+                                <div className="flex items-center gap-1.5 clay-sunken px-2 py-1 rounded-xl text-[11px] font-mono font-bold">
+                                  <span className="text-coral-500">{item.protein}P</span>
+                                  <span className="text-amber-500">{item.carbs}C</span>
+                                  <span className="text-sky-500">{item.fat}F</span>
                                 </div>
 
                                 <button
                                   onClick={() => handleRemoveItem(idx)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 transition"
+                                  className="clay-pebble w-7 h-7 rounded-full text-slate-400 hover:text-rose-500 flex items-center justify-center transition"
                                   aria-label="Remove item"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
@@ -357,38 +357,38 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                       </div>
 
                       {/* Macro Summary Pill */}
-                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div className="p-4 rounded-2xl clay-sunken flex items-center justify-between">
                         <div>
-                          <span className="text-[11px] text-slate-500 block uppercase font-semibold">
+                          <span className="text-[11px] text-slate-400 block uppercase font-bold font-display">
                             Total Calories
                           </span>
-                          <span className="text-2xl font-black text-slate-900">
-                            {totalCalories} <span className="text-xs text-emerald-700">kcal</span>
+                          <span className="text-2xl font-black text-slate-800 dark:text-slate-100 font-mono">
+                            {totalCalories} <span className="text-xs font-bold text-lime-600 dark:text-lime-400">kcal</span>
                           </span>
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-center font-bold">
                           <div>
-                            <span className="text-[10px] text-slate-500 block font-normal">Protein</span>
-                            <span className="text-rose-600">{Math.round(totalProtein)}g</span>
+                            <span className="text-[10px] text-slate-400 block font-display">Protein</span>
+                            <span className="text-coral-500 font-mono font-black">{Math.round(totalProtein)}g</span>
                           </div>
-                          <div className="h-6 w-px bg-slate-200" />
+                          <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
                           <div>
-                            <span className="text-[10px] text-slate-500 block font-normal">Carbs</span>
-                            <span className="text-amber-600">{Math.round(totalCarbs)}g</span>
+                            <span className="text-[10px] text-slate-400 block font-display">Carbs</span>
+                            <span className="text-amber-500 font-mono font-black">{Math.round(totalCarbs)}g</span>
                           </div>
-                          <div className="h-6 w-px bg-slate-200" />
+                          <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
                           <div>
-                            <span className="text-[10px] text-slate-500 block font-normal">Fats</span>
-                            <span className="text-teal-600">{Math.round(totalFat)}g</span>
+                            <span className="text-[10px] text-slate-400 block font-display">Fats</span>
+                            <span className="text-sky-500 font-mono font-black">{Math.round(totalFat)}g</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Approximate Disclaimer Note */}
-                      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-[11px] text-amber-900">
-                        <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                        <span>
+                      <div className="p-3.5 rounded-2xl clay-card-butter flex items-start gap-2.5 text-[11px] text-slate-900">
+                        <Info className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+                        <span className="font-semibold leading-relaxed">
                           <strong>Note:</strong> Photo calorie estimation is an approximate nutritional reference based on visual volume detection. You can adjust grams and calories above before saving.
                         </span>
                       </div>
@@ -399,11 +399,11 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
             </div>
 
             {scanResult && !isScanning && (
-              <div className="pt-4 mt-3 border-t border-slate-200 flex items-center gap-3">
+              <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 px-4 rounded-xl text-slate-600 hover:text-slate-900 font-semibold text-xs transition"
+                  className="clay-btn py-3 px-4 rounded-clay-btn text-slate-700 dark:text-slate-200 font-bold text-xs transition active:scale-95 flex-1"
                 >
                   Cancel
                 </button>
@@ -411,7 +411,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmAndSave}
-                  className="flex-2 py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition shadow-sm"
+                  className="clay-btn-lime py-3 px-6 rounded-clay-btn font-black text-sm flex items-center justify-center gap-2 transition shadow-sm active:scale-95 flex-2"
                 >
                   <Check className="w-4 h-4 stroke-[3]" />
                   <span>Confirm & Log Meal</span>

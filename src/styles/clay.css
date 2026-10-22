@@ -31,13 +31,35 @@
 /* Dark Mode Card */
 .dark .clay-card,
 .dark .clay-card-flat {
-  background: #252840;
+  background: #252840 !important;
   color: #E2E4F0;
   box-shadow: 
     14px 14px 32px rgba(10, 11, 18, 0.85),
     -8px -8px 24px rgba(255, 255, 255, 0.04),
     inset 4px 4px 10px rgba(255, 255, 255, 0.08),
     inset -4px -4px 12px rgba(10, 11, 18, 0.6);
+}
+
+/* Ensure pastel clay elements retain dark readable typography in dark mode */
+.dark .clay-card-lime,
+.dark .clay-card-sky,
+.dark .clay-card-coral,
+.dark .clay-card-lilac,
+.dark .clay-card-butter,
+.dark .clay-btn-lime,
+.dark .clay-btn-sky,
+.dark .clay-btn-coral,
+.dark .clay-btn-lilac,
+.dark .clay-btn-butter {
+  color: #1B1D2B !important;
+}
+
+.dark .clay-card-lime h1, .dark .clay-card-lime h2, .dark .clay-card-lime h3, .dark .clay-card-lime h4, .dark .clay-card-lime h5, .dark .clay-card-lime h6,
+.dark .clay-card-sky h1, .dark .clay-card-sky h2, .dark .clay-card-sky h3, .dark .clay-card-sky h4, .dark .clay-card-sky h5, .dark .clay-card-sky h6,
+.dark .clay-card-coral h1, .dark .clay-card-coral h2, .dark .clay-card-coral h3, .dark .clay-card-coral h4, .dark .clay-card-coral h5, .dark .clay-card-coral h6,
+.dark .clay-card-lilac h1, .dark .clay-card-lilac h2, .dark .clay-card-lilac h3, .dark .clay-card-lilac h4, .dark .clay-card-lilac h5, .dark .clay-card-lilac h6,
+.dark .clay-card-butter h1, .dark .clay-card-butter h2, .dark .clay-card-butter h3, .dark .clay-card-butter h4, .dark .clay-card-butter h5, .dark .clay-card-butter h6 {
+  color: #1B1D2B !important;
 }
 
 /* -------------------------------------------------------------------
@@ -550,4 +572,79 @@
 }
 .dark .clay-blob-3 {
   background: radial-gradient(circle, rgba(255, 215, 107, 0.12) 0%, rgba(255, 215, 107, 0) 70%);
+}
+
+/* -------------------------------------------------------------------
+   9. CLAY RANGE SLIDERS & FORM CONTROLS
+   ------------------------------------------------------------------- */
+
+.clay-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  border-radius: 9999px;
+  background: #E2E6F5;
+  box-shadow:
+    inset 3px 3px 6px rgba(120, 120, 170, 0.35),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dark .clay-range {
+  background: #191B28;
+  box-shadow:
+    inset 3px 3px 6px rgba(0, 0, 0, 0.75),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.05);
+}
+
+/* Webkit (Chrome, Safari, Edge) Thumb */
+.clay-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #B8F25B;
+  box-shadow:
+    4px 4px 10px rgba(133, 199, 34, 0.45),
+    -2px -2px 6px rgba(255, 255, 255, 0.8),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+    inset -2px -2px 5px rgba(110, 170, 20, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
+  border: 2px solid #FFFFFF;
+}
+
+.clay-range::-webkit-slider-thumb:hover,
+.clay-range::-webkit-slider-thumb:active {
+  transform: scale(1.18);
+  box-shadow:
+    6px 6px 14px rgba(133, 199, 34, 0.55),
+    -2px -2px 8px rgba(255, 255, 255, 0.9),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+    inset -2px -2px 5px rgba(110, 170, 20, 0.4);
+}
+
+/* Firefox Thumb */
+.clay-range::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #B8F25B;
+  box-shadow:
+    4px 4px 10px rgba(133, 199, 34, 0.45),
+    -2px -2px 6px rgba(255, 255, 255, 0.8),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+    inset -2px -2px 5px rgba(110, 170, 20, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid #FFFFFF;
+}
+
+.clay-range::-moz-range-thumb:hover,
+.clay-range::-moz-range-thumb:active {
+  transform: scale(1.18);
 }

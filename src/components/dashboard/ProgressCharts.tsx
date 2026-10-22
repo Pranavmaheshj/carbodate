@@ -97,7 +97,7 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
     <div className="space-y-6 text-left">
       {/* Chart Selector Pills */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto scrollbar-none">
+        <div className="clay-sunken p-1.5 rounded-full flex items-center gap-1.5 overflow-x-auto scrollbar-none max-w-full">
           {[
             { id: 'weight' as const, label: 'Weight Trend', icon: Scale },
             { id: 'calories' as const, label: 'Calories In vs Out', icon: Flame },
@@ -110,13 +110,13 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveChart(item.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-xl whitespace-nowrap transition ${
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-heading font-black rounded-full whitespace-nowrap transition-all ${
                   isSelected
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'clay-btn-lime text-clay-text scale-105 shadow-sm'
+                    : 'text-clay-text/70 dark:text-slate-400 hover:text-clay-text dark:hover:text-white'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-4 h-4 stroke-[2.2]" />
                 <span>{item.label}</span>
               </button>
             );
@@ -126,51 +126,52 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
 
       {/* CHART 1: Weight Progression Area Chart */}
       {activeChart === 'weight' && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="clay-card rounded-clay-card p-6 sm:p-7">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 mb-6">
             <div>
-              <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-700">
-                Weight Journey
+              <span className="clay-chip bg-clay-lime text-clay-text text-xs mb-1.5">
+                <Scale className="w-3.5 h-3.5" />
+                <span>Weight Journey</span>
               </span>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
+              <h3 className="text-2xl sm:text-3xl font-heading font-black text-clay-text dark:text-white tracking-tight mt-1">
                 {currentWeight} kg{' '}
-                <span className="text-xs font-semibold text-slate-500">
+                <span className="text-sm font-sans font-normal text-clay-text/60 dark:text-slate-400">
                   (Goal: {profile.targetWeightKg} kg)
                 </span>
               </h3>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-right">
-                <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <div className="p-3 rounded-2xl clay-card-flat text-right">
+                <span className="text-[10px] text-clay-text/60 dark:text-slate-400 uppercase font-heading font-black block">
                   Net Progress
                 </span>
-                <span className={`text-sm font-bold flex items-center justify-end gap-1 ${
-                  weightDiff <= 0 ? 'text-emerald-700' : 'text-amber-700'
+                <span className={`text-base font-heading font-black flex items-center justify-end gap-1 ${
+                  weightDiff <= 0 ? 'text-clay-lime-dark dark:text-clay-lime' : 'text-clay-coral-dark dark:text-clay-coral'
                 }`}>
                   {weightDiff <= 0 ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
                   {Math.abs(weightDiff)} kg {weightDiff <= 0 ? 'lost' : 'gained'}
                 </span>
               </div>
 
-              <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-right">
-                <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
+              <div className="p-3 rounded-2xl clay-card-lime text-right">
+                <span className="text-[10px] text-clay-text/70 uppercase font-heading font-black block">
                   To Goal
                 </span>
-                <span className="text-sm font-bold text-slate-900">
+                <span className="text-base font-heading font-black text-clay-text">
                   {targetDiff} kg left
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 sm:h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={weightData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="weightGradLight" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="#B8F25B" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="#B8F25B" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -178,26 +179,26 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
                   stroke="#94A3B8"
                   fontSize={11}
                   tickLine={false}
-                  axisLine={{ stroke: '#E2E8F0' }}
+                  axisLine={{ stroke: '#64748B', opacity: 0.3 }}
                 />
                 <YAxis
                   domain={['dataMin - 1', 'dataMax + 1']}
                   stroke="#94A3B8"
                   fontSize={11}
                   tickLine={false}
-                  axisLine={{ stroke: '#E2E8F0' }}
+                  axisLine={{ stroke: '#64748B', opacity: 0.3 }}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-lg text-xs">
-                          <span className="font-bold text-slate-900 block">{data.date}</span>
-                          <span className="text-emerald-700 font-extrabold text-sm">
+                        <div className="clay-card p-3 rounded-2xl text-xs space-y-0.5 shadow-lg border border-white/20">
+                          <span className="font-heading font-black text-clay-text dark:text-white block">{data.date}</span>
+                          <span className="text-clay-lime-dark dark:text-clay-lime font-mono font-black text-sm block">
                             {data.weight} kg
                           </span>
-                          <span className="text-slate-500 block text-[10px]">
+                          <span className="text-clay-text/60 dark:text-slate-400 block text-[10px]">
                             Target: {data.target} kg
                           </span>
                         </div>
@@ -208,20 +209,20 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
                 />
                 <ReferenceLine
                   y={profile.targetWeightKg}
-                  stroke="#059669"
+                  stroke="#85C722"
                   strokeDasharray="4 4"
                   label={{
                     value: 'Goal',
-                    fill: '#059669',
-                    fontSize: 10,
+                    fill: '#85C722',
+                    fontSize: 11,
                     position: 'insideBottomRight',
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="weight"
-                  stroke="#10B981"
-                  strokeWidth={2.5}
+                  stroke="#85C722"
+                  strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#weightGradLight)"
                 />
@@ -233,42 +234,43 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
 
       {/* CHART 2: Calories In vs Out Bar Chart */}
       {activeChart === 'calories' && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm">
+        <div className="clay-card rounded-clay-card p-6 sm:p-7">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
-              <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-700">
-                Energy Balance
+              <span className="clay-chip bg-clay-coral text-clay-text text-xs mb-1.5">
+                <Flame className="w-3.5 h-3.5" />
+                <span>Energy Balance</span>
               </span>
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-heading font-black text-clay-text dark:text-white tracking-tight mt-1">
                 Calories Consumed vs. Exercise Burned
               </h3>
             </div>
-            <div className="flex items-center gap-3 text-xs font-semibold">
-              <span className="flex items-center gap-1.5 text-amber-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Eaten
+            <div className="flex items-center gap-3 text-xs font-heading font-black">
+              <span className="flex items-center gap-1.5 text-clay-butter-dark dark:text-clay-butter">
+                <span className="w-3 h-3 rounded-full bg-clay-butter" /> Eaten
               </span>
-              <span className="flex items-center gap-1.5 text-emerald-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Burned
+              <span className="flex items-center gap-1.5 text-clay-lime-dark dark:text-clay-lime">
+                <span className="w-3 h-3 rounded-full bg-clay-lime" /> Burned
               </span>
             </div>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 sm:h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={caloriesInOutData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                 <XAxis
                   dataKey="date"
                   stroke="#94A3B8"
-                  fontSize={10}
+                  fontSize={11}
                   interval={0}
                   tickLine={false}
-                  axisLine={{ stroke: '#E2E8F0' }}
+                  axisLine={{ stroke: '#64748B', opacity: 0.3 }}
                 />
                 <YAxis
                   stroke="#94A3B8"
                   fontSize={11}
                   tickLine={false}
-                  axisLine={{ stroke: '#E2E8F0' }}
+                  axisLine={{ stroke: '#64748B', opacity: 0.3 }}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
@@ -276,15 +278,15 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
                       const data = payload[0].payload;
                       const net = data.foodIn - data.exerciseOut;
                       return (
-                        <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-lg text-xs space-y-1">
-                          <span className="font-bold text-slate-900 block">{data.date}</span>
-                          <div className="text-amber-700 font-semibold">
+                        <div className="clay-card p-3.5 rounded-2xl text-xs space-y-1 shadow-lg border border-white/20">
+                          <span className="font-heading font-black text-clay-text dark:text-white block">{data.date}</span>
+                          <div className="text-clay-butter-dark dark:text-clay-butter font-bold">
                             Food Eaten: {data.foodIn} kcal
                           </div>
-                          <div className="text-emerald-700 font-semibold">
+                          <div className="text-clay-coral-dark dark:text-clay-coral font-bold">
                             Exercise Burned: {data.exerciseOut} kcal
                           </div>
-                          <div className="text-slate-900 font-bold pt-1 border-t border-slate-100">
+                          <div className="text-clay-text dark:text-white font-black pt-1 border-t border-slate-200/40">
                             Net Intake: {net} kcal
                           </div>
                         </div>
@@ -295,11 +297,11 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
                 />
                 <ReferenceLine
                   y={calculations.dailyCalorieTarget}
-                  stroke="#0D9488"
+                  stroke="#7CCBFF"
                   strokeDasharray="3 3"
                 />
-                <Bar dataKey="foodIn" fill="#F59E0B" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="exerciseOut" fill="#10B981" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="foodIn" fill="#FFD76B" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="exerciseOut" fill="#B8F25B" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -308,46 +310,47 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
 
       {/* CHART 3: Cardio Distance Trend */}
       {activeChart === 'distance' && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm">
+        <div className="clay-card rounded-clay-card p-6 sm:p-7">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
             <div>
-              <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-700">
-                Cardio Output
+              <span className="clay-chip bg-clay-sky text-clay-text text-xs mb-1.5">
+                <Compass className="w-3.5 h-3.5" />
+                <span>Cardio Output</span>
               </span>
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-heading font-black text-clay-text dark:text-white tracking-tight mt-1">
                 Daily Running & Cycling Distance (km)
               </h3>
             </div>
-            <span className="text-xs font-semibold text-emerald-700">
+            <span className="text-xs font-heading font-black text-clay-sky-dark dark:text-clay-sky">
               Total 7d: {distanceData.reduce((s, d) => s + d.distanceKm, 0).toFixed(1)} km
             </span>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 sm:h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={distanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <XAxis
                   dataKey="date"
                   stroke="#94A3B8"
-                  fontSize={10}
+                  fontSize={11}
                   interval={0}
                   tickLine={false}
-                  axisLine={{ stroke: '#E2E8F0' }}
+                  axisLine={{ stroke: '#64748B', opacity: 0.3 }}
                 />
                 <YAxis
                   stroke="#94A3B8"
                   fontSize={11}
                   tickLine={false}
-                  axisLine={{ stroke: '#E2E8F0' }}
+                  axisLine={{ stroke: '#64748B', opacity: 0.3 }}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-white border border-slate-200 p-2.5 rounded-xl shadow-lg text-xs">
-                          <span className="font-bold text-slate-900">{data.date}: </span>
-                          <span className="text-emerald-700 font-bold">
+                        <div className="clay-card p-3 rounded-2xl shadow-lg text-xs border border-white/20">
+                          <span className="font-heading font-black text-clay-text dark:text-white">{data.date}: </span>
+                          <span className="text-clay-sky-dark dark:text-clay-sky font-bold font-mono">
                             {data.distanceKm} km
                           </span>
                         </div>
@@ -356,7 +359,7 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
                     return null;
                   }}
                 />
-                <Bar dataKey="distanceKm" fill="#0D9488" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="distanceKm" fill="#7CCBFF" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

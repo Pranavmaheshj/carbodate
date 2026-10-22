@@ -81,49 +81,49 @@ export const RestTimerOverlay: React.FC<RestTimerOverlayProps> = ({
           initial={{ opacity: 0, y: 50, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 50, scale: 0.9 }}
-          className="fixed bottom-20 md:bottom-8 right-4 left-4 sm:left-auto md:right-8 z-50 bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 shadow-2xl sm:w-80 select-none text-left"
+          className="fixed bottom-20 md:bottom-8 right-4 left-4 sm:left-auto md:right-8 z-50 clay-card rounded-clay-card p-5 shadow-2xl sm:w-80 select-none text-left"
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                isFinished ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'
+            <div className="flex items-center gap-2.5">
+              <div className={`w-9 h-9 clay-pebble rounded-2xl flex items-center justify-center ${
+                isFinished ? 'text-amber-600 dark:text-amber-400' : 'text-lime-600 dark:text-lime-400'
               }`}>
                 {isFinished ? <BellRing className="w-4 h-4" /> : <Timer className="w-4 h-4" />}
               </div>
               <div>
-                <span className="text-xs font-bold text-slate-900 block">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 block font-display">
                   {isFinished ? 'Rest Complete!' : 'Resting Between Sets'}
                 </span>
-                <span className="text-[10px] text-slate-500">
-                  {isFinished ? 'Ready for next set' : 'Replenishing energy'}
+                <span className="text-[10px] font-bold text-slate-400">
+                  {isFinished ? 'Ready for next set' : 'Replenishing ATP energy'}
                 </span>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100"
+              className="clay-pebble w-7 h-7 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition"
               aria-label="Dismiss timer"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Time Counter */}
-          <div className="text-center py-2">
+          <div className="text-center py-2.5 clay-sunken rounded-2xl my-2">
             <span className={`text-4xl font-black font-mono tracking-tight ${
-              isFinished ? 'text-amber-600' : 'text-slate-900'
+              isFinished ? 'text-amber-500' : 'text-slate-800 dark:text-slate-100'
             }`}>
               {formatDuration(secondsLeft)}
             </span>
           </div>
 
           {/* Progress Bar */}
-          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden my-3">
+          <div className="h-2 w-full clay-sunken rounded-full overflow-hidden my-3 p-0.5">
             <div
-              className={`h-full transition-all duration-1000 ${
-                isFinished ? 'bg-amber-500' : 'bg-emerald-500'
+              className={`h-full rounded-full transition-all duration-1000 ${
+                isFinished ? 'bg-amber-400' : 'bg-[#B8F25B]'
               }`}
               style={{ width: `${progress}%` }}
             />
@@ -131,16 +131,16 @@ export const RestTimerOverlay: React.FC<RestTimerOverlayProps> = ({
 
           {/* Adjustment steppers */}
           <div className="flex items-center justify-between gap-2 pt-1">
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               <button
                 onClick={() => addSeconds(-15)}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs text-slate-700 font-bold border border-slate-200"
+                className="clay-btn px-2.5 py-1.5 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold active:scale-95"
               >
                 -15s
               </button>
               <button
                 onClick={() => addSeconds(30)}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs text-slate-700 font-bold border border-slate-200"
+                className="clay-btn px-2.5 py-1.5 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold active:scale-95"
               >
                 +30s
               </button>
@@ -148,7 +148,7 @@ export const RestTimerOverlay: React.FC<RestTimerOverlayProps> = ({
 
             <button
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs"
+              className="clay-btn-lime px-4 py-1.5 rounded-xl font-black text-xs active:scale-95"
             >
               Skip
             </button>

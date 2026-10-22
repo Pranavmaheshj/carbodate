@@ -206,33 +206,34 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
   return (
     <div className="space-y-6 text-left">
       {/* Plan Header Card */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 relative overflow-hidden shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="clay-card rounded-clay-card p-6 sm:p-7 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-700">
-                Weekly Routine
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="clay-chip bg-clay-lilac text-clay-text text-xs">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Weekly Routine</span>
               </span>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
+            <h3 className="text-2xl sm:text-3xl font-heading font-black text-clay-text dark:text-white tracking-tight">
               {currentPlan?.name || 'Weekly Training Plan'}
             </h3>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 max-w-md">
+            <p className="text-xs sm:text-sm font-sans text-clay-text/70 dark:text-slate-300 mt-1 max-w-md">
               {currentPlan?.description || 'Organize your weekly muscle split and exercises.'}
             </p>
           </div>
 
           <button
             onClick={() => setIsGeneratorOpen(true)}
-            className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs"
+            className="py-3 px-5 rounded-clay-btn clay-btn-lime text-clay-text font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4 fill-current" />
             <span>Generate Plan</span>
           </button>
         </div>
 
         {/* Day Tabs (Mon - Sun) */}
-        <div className="grid grid-cols-7 gap-1 sm:gap-2 mt-6 pt-5 border-t border-slate-100">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5 mt-7 pt-6 border-t border-slate-200/60 dark:border-slate-700/60">
           {orderedDays.map((day, idx) => {
             const isToday =
               (todayDayOfWeek === 0 && day.dayOfWeek === 0) ||
@@ -243,21 +244,21 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
               <button
                 key={day.dayOfWeek}
                 onClick={() => setSelectedDayIndex(idx)}
-                className={`p-1 sm:p-3 rounded-2xl text-center transition flex flex-col items-center justify-center relative border min-w-0 ${
+                className={`p-2 sm:p-3.5 rounded-2xl text-center transition flex flex-col items-center justify-center relative min-w-0 ${
                   isSelected
-                    ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'clay-btn-lime text-clay-text scale-105 shadow-md'
+                    : 'clay-pebble text-clay-text/80 dark:text-slate-300 hover:scale-105'
                 }`}
               >
-                <span className="text-[9px] sm:text-xs font-bold uppercase tracking-wider block truncate max-w-full">
+                <span className="text-[10px] sm:text-xs font-heading font-black uppercase tracking-wider block truncate max-w-full">
                   {day.dayName.slice(0, 3)}
                 </span>
-                <span className="text-[8px] sm:text-[10px] mt-0.5 font-medium truncate max-w-full">
+                <span className="text-[8px] sm:text-[10px] mt-0.5 font-sans font-bold truncate max-w-full opacity-80">
                   {day.isRestDay ? 'Rest' : `${day.exercises.length} ex`}
                 </span>
 
                 {isToday && (
-                  <span className="absolute -top-1 right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-600" />
+                  <span className="absolute -top-1 right-1 w-2.5 h-2.5 rounded-full bg-clay-coral border-2 border-white dark:border-[#252840]" />
                 )}
               </button>
             );
@@ -267,20 +268,20 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
 
       {/* Selected Day Details */}
       {activeDay && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+        <div className="clay-card rounded-clay-card p-6 sm:p-7">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200/60 dark:border-slate-700/60">
             <div>
               <div className="flex items-center gap-2.5">
-                <h4 className="text-xl font-bold text-slate-900 tracking-tight">
+                <h4 className="text-xl sm:text-2xl font-heading font-black text-clay-text dark:text-white tracking-tight">
                   {activeDay.dayName}: {activeDay.split}
                 </h4>
                 {activeDay.isRestDay && (
-                  <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full border border-slate-200">
+                  <span className="text-xs font-heading font-black px-2.5 py-0.5 rounded-full clay-chip bg-clay-butter text-clay-text">
                     Rest Day
                   </span>
                 )}
               </div>
-              <span className="text-xs text-slate-500 mt-1 block">
+              <span className="text-xs font-sans text-clay-text/60 dark:text-slate-400 mt-1 block">
                 {activeDay.isRestDay
                   ? 'Active recovery window.'
                   : `${activeDay.exercises.length} scheduled resistance movements`}
@@ -290,7 +291,7 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
             <div className="flex items-center gap-3">
               <button
                 onClick={handleToggleRestDay}
-                className="py-2 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition"
+                className="py-2.5 px-4 rounded-clay-btn clay-btn text-clay-text dark:text-white text-xs font-heading font-black transition active:scale-95"
               >
                 {activeDay.isRestDay ? 'Change to Workout' : 'Mark as Rest Day'}
               </button>
@@ -298,7 +299,7 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
               {!activeDay.isRestDay && (
                 <button
                   onClick={() => onStartScheduledWorkout(activeDay)}
-                  className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition active:scale-95"
+                  className="py-2.5 px-5 rounded-clay-btn clay-btn-lime text-clay-text font-heading font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   <span>Start This Workout</span>
@@ -308,29 +309,35 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
           </div>
 
           {/* Exercises for this day */}
-          <div className="mt-5">
+          <div className="mt-6">
             {activeDay.isRestDay ? (
-              <div className="text-center py-10 text-slate-500">
-                <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-700">Active Recovery Scheduled</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              <div className="text-center py-12 text-clay-text">
+                <div className="w-14 h-14 rounded-full clay-pebble bg-clay-sky text-clay-text mx-auto mb-3 flex items-center justify-center">
+                  <Clock className="w-7 h-7 stroke-[2]" />
+                </div>
+                <p className="text-base font-heading font-black text-clay-text dark:text-white">
+                  Active Recovery Scheduled
+                </p>
+                <p className="text-xs font-sans text-clay-text/60 dark:text-slate-400 mt-1 max-w-sm mx-auto">
                   Take a brisk walk, stretch, and hit your hydration goals.
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {activeDay.exercises.map((ex, exIdx) => (
                   <div
                     key={exIdx}
-                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between hover:border-slate-300 transition"
+                    className="p-4 rounded-2xl clay-card-flat flex items-center justify-between transition hover:scale-[1.01]"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-9 h-9 rounded-full clay-pebble bg-clay-lilac text-clay-text font-heading font-black text-xs flex items-center justify-center">
                         {exIdx + 1}
                       </div>
                       <div>
-                        <span className="font-bold text-slate-900 text-sm block">{ex.name}</span>
-                        <span className="text-xs text-slate-500 capitalize">
+                        <span className="font-heading font-black text-clay-text dark:text-white text-base block">
+                          {ex.name}
+                        </span>
+                        <span className="text-xs font-sans text-clay-text/60 dark:text-slate-400 capitalize">
                           {ex.muscleGroup} • {ex.targetSets} sets × {ex.targetReps} reps
                         </span>
                       </div>
@@ -338,17 +345,17 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
 
                     <button
                       onClick={() => handleRemoveExerciseFromDay(exIdx)}
-                      className="p-2 text-slate-400 hover:text-rose-600 transition"
+                      className="w-8 h-8 rounded-full clay-pebble text-clay-text/40 hover:text-rose-500 transition"
                       aria-label="Remove exercise from day"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 stroke-[2]" />
                     </button>
                   </div>
                 ))}
 
                 <button
                   onClick={handleAddExerciseToDay}
-                  className="w-full py-3 rounded-2xl border border-dashed border-slate-300 hover:border-emerald-500 text-slate-600 hover:text-emerald-700 text-xs font-bold flex items-center justify-center gap-2 transition"
+                  className="w-full py-3.5 rounded-2xl clay-sunken text-clay-text dark:text-white hover:opacity-90 text-xs font-heading font-black flex items-center justify-center gap-2 transition"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
                   <span>Add Exercise to {activeDay.dayName}</span>
@@ -362,51 +369,56 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
       {/* PLAN GENERATOR MODAL */}
       <AnimatePresence>
         {isGeneratorOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl relative text-left"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="w-full max-w-lg clay-card rounded-clay-card p-6 sm:p-7 relative text-left"
             >
               <button
                 onClick={() => setIsGeneratorOpen(false)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition"
+                className="absolute top-5 right-5 w-9 h-9 rounded-full clay-pebble flex items-center justify-center text-clay-text/60 hover:text-clay-text dark:text-slate-400 dark:hover:text-white transition"
                 aria-label="Close generator"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 stroke-[2.5]" />
               </button>
 
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
-                  <Sparkles className="w-5 h-5" />
+              <div className="flex items-center gap-3.5 mb-6">
+                <div className="w-12 h-12 rounded-full clay-pebble bg-clay-lime text-clay-text flex items-center justify-center font-bold">
+                  <Sparkles className="w-6 h-6 stroke-[2.2]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">Generate Workout Plan</h3>
-                  <span className="text-xs text-slate-500">Customized to your goal, schedule, and equipment</span>
+                  <h3 className="text-2xl font-heading font-black text-clay-text dark:text-white">
+                    Generate Workout Plan
+                  </h3>
+                  <span className="text-xs font-sans text-clay-text/60 dark:text-slate-400">
+                    Customized to your goal, schedule, and equipment
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-4 mb-6">
+              <div className="space-y-5 mb-6">
                 {/* Goal */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-2">
                     Training Focus
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2.5">
                     {[
-                      { id: 'fat_loss' as const, label: 'Fat Loss (Deficit)' },
+                      { id: 'fat_loss' as const, label: 'Fat Loss' },
                       { id: 'hypertrophy' as const, label: 'Hypertrophy' },
-                      { id: 'strength' as const, label: 'Strength & Power' },
+                      { id: 'strength' as const, label: 'Strength' },
                     ].map((g) => (
                       <button
                         key={g.id}
                         type="button"
                         onClick={() => setGenGoal(g.id)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition text-center ${
+                        className={`p-3 rounded-2xl text-xs font-heading font-black transition text-center ${
                           genGoal === g.id
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                            ? 'clay-btn-lime text-clay-text scale-105 shadow-sm'
+                            : 'clay-pebble text-clay-text dark:text-slate-300'
                         }`}
                       >
                         {g.label}
@@ -417,19 +429,19 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
 
                 {/* Experience Level */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-2">
                     Experience Level
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2.5">
                     {(['beginner', 'intermediate', 'advanced'] as const).map((lvl) => (
                       <button
                         key={lvl}
                         type="button"
                         onClick={() => setGenLevel(lvl)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold capitalize transition text-center ${
+                        className={`p-3 rounded-2xl text-xs font-heading font-black capitalize transition text-center ${
                           genLevel === lvl
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                            ? 'clay-btn-sky text-clay-text scale-105 shadow-sm'
+                            : 'clay-pebble text-clay-text dark:text-slate-300'
                         }`}
                       >
                         {lvl}
@@ -440,7 +452,7 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
 
                 {/* Days Per Week */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-2">
                     Days Available Per Week
                   </label>
                   <div className="grid grid-cols-4 gap-2">
@@ -449,13 +461,13 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
                         key={days}
                         type="button"
                         onClick={() => setGenDays(days)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition text-center ${
+                        className={`p-3 rounded-2xl text-xs font-heading font-black transition text-center ${
                           genDays === days
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                            ? 'clay-btn-coral text-clay-text scale-105 shadow-sm'
+                            : 'clay-pebble text-clay-text dark:text-slate-300'
                         }`}
                       >
-                        {days} Days/Wk
+                        {days} Days
                       </button>
                     ))}
                   </div>
@@ -463,23 +475,23 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
 
                 {/* Equipment */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-2">
                     Available Equipment
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2.5">
                     {[
                       { id: 'full_gym' as const, label: 'Full Gym' },
-                      { id: 'dumbbells' as const, label: 'Dumbbells Only' },
-                      { id: 'bodyweight' as const, label: 'Calisthenics' },
+                      { id: 'dumbbells' as const, label: 'Dumbbells' },
+                      { id: 'bodyweight' as const, label: 'Bodyweight' },
                     ].map((eq) => (
                       <button
                         key={eq.id}
                         type="button"
                         onClick={() => setGenEquipment(eq.id)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition text-center ${
+                        className={`p-3 rounded-2xl text-xs font-heading font-black transition text-center ${
                           genEquipment === eq.id
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                            ? 'clay-btn-lilac text-clay-text scale-105 shadow-sm'
+                            : 'clay-pebble text-clay-text dark:text-slate-300'
                         }`}
                       >
                         {eq.label}
@@ -491,9 +503,9 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
 
               <button
                 onClick={handleGeneratePlan}
-                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center justify-center gap-2 transition shadow-sm"
+                className="w-full py-4 rounded-clay-btn clay-btn-lime text-clay-text font-heading font-black flex items-center justify-center gap-2 transition text-sm shadow-md active:scale-95"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4 fill-current" />
                 <span>Apply Generated Split</span>
               </button>
             </motion.div>

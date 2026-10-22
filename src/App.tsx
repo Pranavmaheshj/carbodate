@@ -299,17 +299,17 @@ export function App() {
           {currentTab === 'gym' && (
             <div className="space-y-6">
               {/* Gym Subtabs Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
+                <div className="clay-sunken p-1.5 rounded-full flex items-center gap-1.5 flex-wrap">
                   <button
                     onClick={() => {
                       setIsGymLoggerOpen(false);
                       setGymSubTab('plan');
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    className={`px-4 py-2 rounded-full text-xs font-heading font-black transition-all ${
                       gymSubTab === 'plan' && !isGymLoggerOpen
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200'
+                        ? 'clay-btn-lime text-clay-text scale-105'
+                        : 'text-clay-text/70 dark:text-slate-400 hover:text-clay-text dark:hover:text-white'
                     }`}
                   >
                     Workout Routine & Planner
@@ -320,10 +320,10 @@ export function App() {
                       setIsGymLoggerOpen(true);
                       setGymSubTab('logger');
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    className={`px-4 py-2 rounded-full text-xs font-heading font-black transition-all ${
                       isGymLoggerOpen
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200'
+                        ? 'clay-btn-lime text-clay-text scale-105'
+                        : 'text-clay-text/70 dark:text-slate-400 hover:text-clay-text dark:hover:text-white'
                     }`}
                   >
                     Active Gym Logger
@@ -334,10 +334,10 @@ export function App() {
                       setIsGymLoggerOpen(false);
                       setGymSubTab('volume');
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition hidden sm:inline-block ${
+                    className={`px-4 py-2 rounded-full text-xs font-heading font-black transition-all hidden sm:inline-block ${
                       gymSubTab === 'volume' && !isGymLoggerOpen
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200'
+                        ? 'clay-btn-lime text-clay-text scale-105'
+                        : 'text-clay-text/70 dark:text-slate-400 hover:text-clay-text dark:hover:text-white'
                     }`}
                   >
                     Volume Analytics
@@ -398,27 +398,29 @@ export function App() {
           {currentTab === 'progress' && (
             <div className="space-y-6">
               {/* Progress Subtabs */}
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
-                <button
-                  onClick={() => setProgressSubTab('charts')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                    progressSubTab === 'charts'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  Trends & Deficit Charts
-                </button>
-                <button
-                  onClick={() => setProgressSubTab('badges')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                    progressSubTab === 'badges'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  Badges & Milestones ({badges.filter((b) => b.isUnlocked).length})
-                </button>
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
+                <div className="clay-sunken p-1.5 rounded-full flex items-center gap-1.5">
+                  <button
+                    onClick={() => setProgressSubTab('charts')}
+                    className={`px-4 py-2 rounded-full text-xs font-heading font-black transition-all ${
+                      progressSubTab === 'charts'
+                        ? 'clay-btn-lime text-clay-text scale-105'
+                        : 'text-clay-text/70 dark:text-slate-400 hover:text-clay-text dark:hover:text-white'
+                    }`}
+                  >
+                    Trends & Deficit Charts
+                  </button>
+                  <button
+                    onClick={() => setProgressSubTab('badges')}
+                    className={`px-4 py-2 rounded-full text-xs font-heading font-black transition-all ${
+                      progressSubTab === 'badges'
+                        ? 'clay-btn-lime text-clay-text scale-105'
+                        : 'text-clay-text/70 dark:text-slate-400 hover:text-clay-text dark:hover:text-white'
+                    }`}
+                  >
+                    Badges & Milestones ({badges.filter((b) => b.isUnlocked).length})
+                  </button>
+                </div>
               </div>
 
               {progressSubTab === 'charts' ? (

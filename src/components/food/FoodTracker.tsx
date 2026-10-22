@@ -76,52 +76,53 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
   const favoriteMeals = meals.filter((m) => m.isFavorite);
 
   return (
-    <div className="space-y-6 pb-28 md:pb-12 text-left">
+    <div className="space-y-7 pb-28 md:pb-12 text-left">
       {/* Top Calorie Budget Hero Card */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 relative overflow-hidden shadow-sm">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="clay-card rounded-clay-card p-6 sm:p-8 relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
           {/* Calorie Ring */}
           <div className="flex-shrink-0">
             <CalorieRing
               targetCalories={targetCals}
               eatenCalories={totalEaten}
               burnedCalories={burnedCaloriesToday}
-              size={210}
-              strokeWidth={14}
+              size={220}
+              strokeWidth={16}
             />
           </div>
 
           {/* Macro breakdown bars & Budget description */}
-          <div className="flex-1 w-full space-y-4">
+          <div className="flex-1 w-full space-y-5">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-600">
-                  Calorie Deficit Budget
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
+                <span className="clay-chip bg-clay-lime text-clay-text text-xs">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Calorie Deficit Budget</span>
                 </span>
-                <span className="text-xs text-slate-500 font-mono">
-                  {targetCals} - {totalEaten} + {burnedCaloriesToday} = {Math.max(0, targetCals + burnedCaloriesToday - totalEaten)} kcal left
+                <span className="text-xs text-clay-text/60 dark:text-slate-400 font-mono">
+                  {targetCals} - {totalEaten} + {burnedCaloriesToday} = <strong className="text-clay-text dark:text-white font-black">{Math.max(0, targetCals + burnedCaloriesToday - totalEaten)} kcal left</strong>
                 </span>
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-0.5">
+              <h3 className="text-2xl sm:text-3xl font-heading font-black text-clay-text dark:text-white tracking-tight mt-1">
                 {calculations.dailyDeficitOrSurplus < 0
                   ? `Deficit Target: ${Math.abs(calculations.dailyDeficitOrSurplus)} kcal/day`
                   : 'Maintenance / Surplus Target'}
               </h3>
             </div>
 
-            {/* Macro Bars */}
-            <div className="space-y-2 pt-1">
+            {/* Macro Bars in Sunken Clay Tracks */}
+            <div className="space-y-3 pt-1">
               {/* Protein */}
               <div>
-                <div className="flex justify-between text-xs font-semibold mb-1">
-                  <span className="text-rose-600">Protein</span>
-                  <span className="text-slate-800 font-mono">
-                    {totalProtein}g <span className="text-slate-400">/ {targetProtein}g</span>
+                <div className="flex justify-between text-xs font-heading font-bold mb-1.5">
+                  <span className="text-clay-coral-dark dark:text-clay-coral">Protein (35%)</span>
+                  <span className="text-clay-text dark:text-white font-mono">
+                    {totalProtein}g <span className="text-clay-text/50 dark:text-slate-500">/ {targetProtein}g</span>
                   </span>
                 </div>
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-3.5 w-full clay-sunken rounded-full overflow-hidden p-0.5">
                   <div
-                    className="h-full bg-rose-500 rounded-full transition-all duration-700"
+                    className="h-full bg-clay-coral rounded-full transition-all duration-700"
                     style={{ width: `${Math.min(100, (totalProtein / targetProtein) * 100)}%` }}
                   />
                 </div>
@@ -129,15 +130,15 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
 
               {/* Carbs */}
               <div>
-                <div className="flex justify-between text-xs font-semibold mb-1">
-                  <span className="text-amber-600">Carbs</span>
-                  <span className="text-slate-800 font-mono">
-                    {totalCarbs}g <span className="text-slate-400">/ {targetCarbs}g</span>
+                <div className="flex justify-between text-xs font-heading font-bold mb-1.5">
+                  <span className="text-clay-butter-dark dark:text-clay-butter">Carbohydrates (40%)</span>
+                  <span className="text-clay-text dark:text-white font-mono">
+                    {totalCarbs}g <span className="text-clay-text/50 dark:text-slate-500">/ {targetCarbs}g</span>
                   </span>
                 </div>
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-3.5 w-full clay-sunken rounded-full overflow-hidden p-0.5">
                   <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-700"
+                    className="h-full bg-clay-butter rounded-full transition-all duration-700"
                     style={{ width: `${Math.min(100, (totalCarbs / targetCarbs) * 100)}%` }}
                   />
                 </div>
@@ -145,15 +146,15 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
 
               {/* Fats */}
               <div>
-                <div className="flex justify-between text-xs font-semibold mb-1">
-                  <span className="text-teal-600">Fats</span>
-                  <span className="text-slate-800 font-mono">
-                    {totalFat}g <span className="text-slate-400">/ {targetFat}g</span>
+                <div className="flex justify-between text-xs font-heading font-bold mb-1.5">
+                  <span className="text-clay-sky-dark dark:text-clay-sky">Fats (25%)</span>
+                  <span className="text-clay-text dark:text-white font-mono">
+                    {totalFat}g <span className="text-clay-text/50 dark:text-slate-500">/ {targetFat}g</span>
                   </span>
                 </div>
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-3.5 w-full clay-sunken rounded-full overflow-hidden p-0.5">
                   <div
-                    className="h-full bg-teal-500 rounded-full transition-all duration-700"
+                    className="h-full bg-clay-sky rounded-full transition-all duration-700"
                     style={{ width: `${Math.min(100, (totalFat / targetFat) * 100)}%` }}
                   />
                 </div>
@@ -163,18 +164,18 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
         </div>
 
         {/* Quick Action buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mt-6 pt-5 border-t border-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-7 pt-6 border-t border-slate-200/60 dark:border-slate-700/60">
           <button
             onClick={() => setIsPhotoModalOpen(true)}
-            className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition shadow-sm"
+            className="py-3 px-5 rounded-clay-btn clay-btn-sky text-clay-text font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
           >
-            <Camera className="w-4 h-4" />
+            <Camera className="w-4 h-4 stroke-[2.5]" />
             <span>AI Photo Calorie Scan</span>
           </button>
 
           <button
             onClick={() => handleOpenAdd('lunch')}
-            className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition"
+            className="py-3 px-5 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Search or Add Food</span>
@@ -191,10 +192,12 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
       />
 
       {/* Meals Sections: Breakfast, Lunch, Dinner, Snacks */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900 tracking-tight">Today's Meals</h3>
-          <span className="text-xs text-slate-500 font-medium">
+          <h3 className="text-xl font-heading font-black text-clay-text dark:text-white tracking-tight">
+            Today's Meals
+          </h3>
+          <span className="text-xs font-sans text-clay-text/60 dark:text-slate-400 font-bold">
             {meals.length} items logged
           </span>
         </div>
@@ -206,18 +209,22 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
           return (
             <div
               key={sec.type}
-              className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm"
+              className="clay-card rounded-clay-card p-5 sm:p-6"
             >
               {/* Section Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-900 text-base">{sec.title}</h4>
-                    <span className="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  <div className="flex items-center gap-2.5">
+                    <h4 className="font-heading font-black text-clay-text dark:text-white text-lg">
+                      {sec.title}
+                    </h4>
+                    <span className="text-xs font-mono font-black text-clay-coral-dark dark:text-clay-coral px-2.5 py-0.5 rounded-full clay-sunken">
                       {sectionCals} kcal
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-500">{sec.desc}</span>
+                  <span className="text-[11px] font-sans text-clay-text/60 dark:text-slate-400 mt-0.5 block">
+                    {sec.desc}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -226,15 +233,15 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
                       setActiveMealTypeForAdd(sec.type);
                       setIsPhotoModalOpen(true);
                     }}
-                    className="p-2 text-slate-400 hover:text-emerald-600 rounded-xl hover:bg-slate-100 transition"
+                    className="w-9 h-9 rounded-full clay-pebble text-clay-text/70 hover:text-clay-text dark:text-slate-300 dark:hover:text-white transition"
                     title={`Scan ${sec.title} photo`}
                     aria-label={`Scan ${sec.title} photo`}
                   >
-                    <Camera className="w-4 h-4" />
+                    <Camera className="w-4 h-4 stroke-[2.2]" />
                   </button>
                   <button
                     onClick={() => handleOpenAdd(sec.type)}
-                    className="py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-emerald-700 font-bold text-xs flex items-center gap-1 border border-slate-200 transition"
+                    className="py-2 px-3.5 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs flex items-center gap-1.5 transition active:scale-95"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" /> Add
                   </button>
@@ -243,53 +250,55 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
 
               {/* Section Meals List */}
               {sectionMeals.length === 0 ? (
-                <div className="py-3 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                <div className="py-4 text-center text-xs font-sans text-clay-text/50 dark:text-slate-400 clay-sunken rounded-2xl">
                   No {sec.title.toLowerCase()} logged yet today.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {sectionMeals.map((meal) => (
                     <div
                       key={meal.id}
-                      className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs hover:border-slate-300 transition group"
+                      className="p-3.5 rounded-2xl clay-card-flat flex items-center justify-between text-xs hover:scale-[1.01] transition group"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3.5">
                         {meal.imageUrl ? (
                           <img
                             src={meal.imageUrl}
                             alt={meal.name}
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200"
+                            className="w-11 h-11 rounded-2xl object-cover shadow-xs border border-white/40"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center flex-shrink-0">
-                            <UtensilsCrossed className="w-4 h-4" />
+                          <div className="w-11 h-11 rounded-2xl clay-pebble bg-clay-lime text-clay-text flex items-center justify-center flex-shrink-0">
+                            <UtensilsCrossed className="w-5 h-5 stroke-[2.2]" />
                           </div>
                         )}
 
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 text-sm">{meal.name}</span>
+                            <span className="font-heading font-black text-clay-text dark:text-white text-sm">
+                              {meal.name}
+                            </span>
                             {meal.aiEstimated && (
-                              <span className="text-[9px] bg-emerald-100 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-bold uppercase">
+                              <span className="text-[9px] font-heading font-black bg-clay-sky text-clay-text px-2 py-0.5 rounded-full uppercase">
                                 AI Scan
                               </span>
                             )}
                           </div>
-                          <span className="text-slate-500 text-[11px] block">
+                          <span className="text-clay-text/60 dark:text-slate-400 text-[11px] font-sans block mt-0.5">
                             {meal.portion} • {meal.protein}g P • {meal.carbs}g C • {meal.fat}g F
                           </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-black text-amber-600">
+                        <span className="text-sm font-heading font-black text-clay-coral-dark dark:text-clay-coral font-mono">
                           {meal.calories} kcal
                         </span>
 
                         <button
                           onClick={() => onToggleFavorite(meal.id)}
-                          className={`p-1.5 rounded-lg transition ${
-                            meal.isFavorite ? 'text-amber-500' : 'text-slate-400 hover:text-slate-600'
+                          className={`w-8 h-8 rounded-full clay-pebble transition ${
+                            meal.isFavorite ? 'text-amber-500 fill-current' : 'text-clay-text/40'
                           }`}
                           title="Favorite meal"
                           aria-label="Favorite meal"
@@ -299,11 +308,11 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
 
                         <button
                           onClick={() => onDeleteMeal(meal.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-500 transition"
+                          className="w-8 h-8 rounded-full clay-pebble text-clay-text/40 hover:text-rose-500 transition"
                           title="Delete meal"
                           aria-label="Delete meal"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 stroke-[2]" />
                         </button>
                       </div>
                     </div>

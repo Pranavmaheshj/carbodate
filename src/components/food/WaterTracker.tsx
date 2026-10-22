@@ -18,68 +18,72 @@ export const WaterTracker: React.FC<WaterTrackerProps> = ({
   const percentage = Math.min(Math.round((currentMl / goalMl) * 100), 100);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-5 text-left shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center">
-            <Droplets className="w-5 h-5 fill-current" />
+    <div className="clay-card rounded-clay-card p-6 text-left">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-full clay-pebble bg-clay-sky text-clay-text flex items-center justify-center">
+            <Droplets className="w-6 h-6 stroke-[2.2] fill-current" />
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 text-base">Water & Hydration</h4>
-            <span className="text-xs text-slate-500">
-              Optimal metabolic rate requires sufficient fluid intake
+            <h4 className="font-heading font-black text-clay-text dark:text-white text-xl">
+              Water & Hydration
+            </h4>
+            <span className="text-xs font-sans text-clay-text/60 dark:text-slate-400">
+              Optimal metabolic rate requires steady fluid intake
             </span>
           </div>
         </div>
 
         <div className="text-right">
-          <span className="text-lg font-bold text-slate-900">
-            {currentMl} <span className="text-xs text-slate-500 font-normal">/ {goalMl} ml</span>
+          <span className="text-xl font-heading font-black text-clay-text dark:text-white font-mono block">
+            {currentMl} <span className="text-xs font-sans text-clay-text/60 dark:text-slate-400 font-normal">/ {goalMl} ml</span>
           </span>
-          <span className="text-xs text-sky-700 font-bold block">{percentage}% Goal</span>
+          <span className="text-xs font-heading font-black text-clay-sky-dark dark:text-clay-sky">
+            {percentage}% Goal
+          </span>
         </div>
       </div>
 
-      {/* Animated Liquid Fill Bar */}
-      <div className="h-3.5 w-full bg-slate-100 border border-slate-200 rounded-full overflow-hidden p-0.5 mb-4">
+      {/* Sunken Clay Liquid Fill Bar */}
+      <div className="h-5 w-full clay-sunken rounded-full overflow-hidden p-1 mb-5">
         <motion.div
-          className="h-full bg-gradient-to-r from-sky-400 to-teal-500 rounded-full"
+          className="h-full clay-btn-sky rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          transition={{ type: 'spring', damping: 20, stiffness: 180 }}
         />
       </div>
 
       {/* Quick Add Buttons */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => onAddWater(250)}
-            className="py-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-50 hover:bg-sky-50 hover:text-sky-800 text-slate-700 text-[11px] sm:text-xs font-bold border border-slate-200 transition flex items-center gap-1 active:scale-95"
+            className="py-2.5 px-4 rounded-clay-btn clay-btn text-clay-text dark:text-white text-xs font-heading font-black transition flex items-center gap-1.5 active:scale-95"
           >
-            <Plus className="w-3.5 h-3.5" /> 250ml
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> 250ml
           </button>
           <button
             onClick={() => onAddWater(500)}
-            className="py-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-50 hover:bg-sky-50 hover:text-sky-800 text-slate-700 text-[11px] sm:text-xs font-bold border border-slate-200 transition flex items-center gap-1 active:scale-95"
+            className="py-2.5 px-4 rounded-clay-btn clay-btn text-clay-text dark:text-white text-xs font-heading font-black transition flex items-center gap-1.5 active:scale-95"
           >
-            <Plus className="w-3.5 h-3.5" /> 500ml
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> 500ml
           </button>
           <button
             onClick={() => onAddWater(1000)}
-            className="py-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-50 hover:bg-sky-50 hover:text-sky-800 text-slate-700 text-[11px] sm:text-xs font-bold border border-slate-200 transition flex items-center gap-1 active:scale-95 hidden sm:flex"
+            className="py-2.5 px-4 rounded-clay-btn clay-btn text-clay-text dark:text-white text-xs font-heading font-black transition flex items-center gap-1.5 active:scale-95 hidden sm:flex"
           >
-            <Plus className="w-3.5 h-3.5" /> 1000ml
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> 1000ml
           </button>
         </div>
 
         <button
           onClick={onReset}
-          className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition"
+          className="w-10 h-10 rounded-full clay-pebble text-clay-text/50 hover:text-clay-text dark:text-slate-400 dark:hover:text-white transition active:scale-95"
           title="Reset water log"
           aria-label="Reset water log"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          <RotateCcw className="w-4 h-4 stroke-[2.5]" />
         </button>
       </div>
     </div>

@@ -218,12 +218,12 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
   return (
     <div className="space-y-6 pb-28 md:pb-12 text-left">
       {/* Top Session HUD Banner */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm">
+      <div className="clay-card rounded-clay-card p-5 sm:p-6 relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-lime-500 animate-ping" />
+              <span className="text-[11px] font-black uppercase tracking-wider text-lime-700 dark:text-lime-400 font-display">
                 Active Workout Session
               </span>
             </div>
@@ -232,22 +232,22 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               type="text"
               value={workoutTitle}
               onChange={(e) => setWorkoutTitle(e.target.value)}
-              className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 focus:outline-none transition w-full"
+              className="clay-sunken rounded-2xl px-4 py-2 text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 font-display tracking-tight w-full focus:outline-none transition border-none"
             />
 
             {/* Split Selector dropdown */}
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-slate-500">Split:</span>
+            <div className="flex items-center gap-2 mt-3">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-display">Split:</span>
               <select
                 value={split}
                 onChange={(e) => {
                   setSplit(e.target.value);
                   setWorkoutTitle(`${e.target.value} Session`);
                 }}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500"
+                className="clay-sunken rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 font-bold focus:outline-none border-none cursor-pointer"
               >
                 {SPLIT_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
+                  <option key={opt} value={opt} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                     {opt}
                   </option>
                 ))}
@@ -256,32 +256,32 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
           </div>
 
           {/* HUD Live Duration & Calorie Stats */}
-          <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 p-3.5 rounded-2xl">
-            <div className="text-center">
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-semibold">
+          <div className="flex items-center gap-4 clay-sunken p-3.5 rounded-2xl self-start sm:self-auto">
+            <div className="text-center px-1">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 block font-bold font-display">
                 Duration
               </span>
-              <span className="text-xl font-bold text-slate-900 font-mono">
+              <span className="text-xl font-black text-slate-800 dark:text-slate-100 font-mono">
                 {formatDuration(elapsedSeconds)}
               </span>
             </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div className="text-center">
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-semibold">
+            <div className="h-8 w-px bg-slate-300 dark:bg-slate-700" />
+            <div className="text-center px-1">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 block font-bold font-display">
                 Burned
               </span>
-              <span className="text-xl font-bold text-amber-600 flex items-center justify-center gap-0.5">
-                <Flame className="w-4 h-4 fill-current text-amber-500" /> {estimatedCalories}
+              <span className="text-xl font-black text-coral-600 dark:text-coral-400 flex items-center justify-center gap-1 font-mono">
+                <Flame className="w-4 h-4 fill-current text-coral-500" /> {estimatedCalories}
               </span>
             </div>
           </div>
         </div>
 
         {/* Action buttons bar */}
-        <div className="flex flex-wrap items-center gap-2.5 mt-5 pt-4 border-t border-slate-100">
+        <div className="flex flex-wrap items-center gap-2.5 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/60">
           <button
             onClick={() => setIsPickerOpen(true)}
-            className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition active:scale-95"
+            className="clay-btn-lime py-2.5 px-4 rounded-clay-btn text-xs font-black flex items-center gap-2 active:scale-95 transition"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Add Exercise</span>
@@ -289,17 +289,17 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
 
           <button
             onClick={handleCopyLastSession}
-            className="py-2.5 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-1.5 border border-slate-200 transition"
+            className="clay-btn py-2.5 px-3.5 rounded-clay-btn text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition"
           >
             <Copy className="w-3.5 h-3.5" />
-            <span>Copy Last Session</span>
+            <span>Copy Last</span>
           </button>
 
           <button
             onClick={() => setIsRestTimerOpen(true)}
-            className="py-2.5 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-1.5 border border-slate-200 transition"
+            className="clay-btn py-2.5 px-3.5 rounded-clay-btn text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition"
           >
-            <Timer className="w-3.5 h-3.5 text-emerald-600" />
+            <Timer className="w-3.5 h-3.5 text-lime-600 dark:text-lime-400" />
             <span>Rest Timer</span>
           </button>
 
@@ -307,7 +307,7 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
 
           <button
             onClick={handleFinish}
-            className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+            className="clay-btn-lime py-2.5 px-5 rounded-clay-btn text-xs font-black flex items-center gap-2 active:scale-95 transition shadow-sm"
           >
             <Check className="w-4 h-4 stroke-[3]" />
             <span>Finish Workout</span>
@@ -315,7 +315,7 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
 
           <button
             onClick={onCancel}
-            className="py-2.5 px-3 rounded-xl text-slate-500 hover:text-slate-800 text-xs transition"
+            className="py-2.5 px-3 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs font-bold transition"
           >
             Cancel
           </button>
@@ -324,15 +324,17 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
 
       {/* Exercises List */}
       {exercises.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-3xl p-10 text-center text-slate-500 shadow-sm">
-          <Dumbbell className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-800">No exercises added yet</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto mb-4">
-            Tap "Add Exercise" to search the 60+ movement library or "Copy Last Session" to preload previous weights.
+        <div className="clay-card rounded-clay-card p-10 text-center">
+          <div className="w-16 h-16 clay-pebble rounded-full flex items-center justify-center mx-auto mb-3">
+            <Dumbbell className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 font-display">No exercises added yet</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+            Tap "Add Exercise" to search the 60+ movement library or "Copy Last" to preload your previous weights and sets.
           </p>
           <button
             onClick={() => setIsPickerOpen(true)}
-            className="py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-2 shadow-sm"
+            className="clay-btn-lime py-3 px-6 rounded-clay-btn font-black text-xs inline-flex items-center gap-2 active:scale-95 transition"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Browse Exercise Library</span>
@@ -343,23 +345,23 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
           {exercises.map((ex, exIndex) => (
             <div
               key={ex.id}
-              className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm"
+              className="clay-card rounded-clay-card p-5 space-y-4"
             >
               {/* Exercise Header */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold text-sm">
+                  <div className="clay-pebble w-9 h-9 rounded-2xl flex items-center justify-center font-black text-sm text-slate-800 dark:text-slate-100 font-mono">
                     {exIndex + 1}
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-900 text-base">{ex.name}</h4>
-                    <span className="text-xs text-slate-500">{ex.muscleGroup}</span>
+                    <h4 className="font-black text-slate-800 dark:text-slate-100 text-base font-display">{ex.name}</h4>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{ex.muscleGroup}</span>
                   </div>
                 </div>
 
                 <button
                   onClick={() => handleRemoveExercise(exIndex)}
-                  className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition"
+                  className="clay-pebble w-8 h-8 rounded-full text-slate-400 hover:text-rose-500 flex items-center justify-center transition active:scale-90"
                   title="Remove exercise"
                   aria-label="Remove exercise"
                 >
@@ -369,7 +371,7 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
 
               {/* Sets Table */}
               <div className="space-y-2">
-                <div className="grid grid-cols-12 gap-1 sm:gap-2 text-[10px] uppercase font-bold tracking-wider text-slate-500 px-1 sm:px-2">
+                <div className="grid grid-cols-12 gap-1 sm:gap-2 text-[10px] uppercase font-black tracking-wider text-slate-400 px-2 font-display">
                   <span className="col-span-2">Set</span>
                   <span className="col-span-4 text-center">Weight (kg)</span>
                   <span className="col-span-4 text-center">Reps</span>
@@ -379,28 +381,26 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
                 {ex.sets.map((set, setIndex) => (
                   <div
                     key={set.setNumber}
-                    className={`grid grid-cols-12 gap-1 sm:gap-2 items-center p-1.5 sm:p-2 rounded-2xl border transition ${
-                      set.completed
-                        ? 'bg-emerald-50 border-emerald-300'
-                        : 'bg-slate-50 border-slate-200'
+                    className={`grid grid-cols-12 gap-1 sm:gap-2 items-center p-2 rounded-2xl clay-sunken transition ${
+                      set.completed ? 'ring-2 ring-lime-400/50' : ''
                     }`}
                   >
                     <div className="col-span-2 flex items-center gap-1">
-                      <span className="font-bold text-xs text-slate-700 ml-0.5">
-                        {set.setNumber}
+                      <span className="font-black text-xs text-slate-700 dark:text-slate-200 ml-1 font-mono">
+                        #{set.setNumber}
                       </span>
                       {set.isPR && (
-                        <span className="bg-amber-100 text-amber-800 text-[8px] sm:text-[9px] font-black px-1 rounded flex items-center gap-0.5 border border-amber-200">
-                          <Trophy className="w-2.5 h-2.5" /> PR
+                        <span className="clay-card-butter text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                          <Trophy className="w-2.5 h-2.5 text-amber-700" /> PR
                         </span>
                       )}
                     </div>
 
                     {/* Weight stepper */}
-                    <div className="col-span-4 flex items-center justify-center gap-0.5 sm:gap-1">
+                    <div className="col-span-4 flex items-center justify-center gap-1">
                       <button
                         onClick={() => handleAdjustWeight(exIndex, setIndex, -2.5)}
-                        className="w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs"
+                        className="clay-btn w-6 sm:w-7 h-6 sm:h-7 rounded-lg text-slate-700 dark:text-slate-200 flex items-center justify-center font-black text-xs active:scale-90"
                       >
                         -
                       </button>
@@ -413,21 +413,21 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
                           updated[exIndex].sets[setIndex].weightKg = Number(e.target.value);
                           setExercises(updated);
                         }}
-                        className="w-10 sm:w-14 bg-white border border-slate-200 rounded-lg py-1 text-center font-mono text-xs sm:text-sm text-slate-900 font-bold focus:outline-none focus:border-emerald-500"
+                        className="clay-input w-12 sm:w-16 rounded-lg py-1 text-center font-mono text-xs sm:text-sm text-slate-800 dark:text-slate-100 font-black border-none"
                       />
                       <button
                         onClick={() => handleAdjustWeight(exIndex, setIndex, 2.5)}
-                        className="w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs"
+                        className="clay-btn w-6 sm:w-7 h-6 sm:h-7 rounded-lg text-slate-700 dark:text-slate-200 flex items-center justify-center font-black text-xs active:scale-90"
                       >
                         +
                       </button>
                     </div>
 
                     {/* Reps stepper */}
-                    <div className="col-span-4 flex items-center justify-center gap-0.5 sm:gap-1">
+                    <div className="col-span-4 flex items-center justify-center gap-1">
                       <button
                         onClick={() => handleAdjustReps(exIndex, setIndex, -1)}
-                        className="w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs"
+                        className="clay-btn w-6 sm:w-7 h-6 sm:h-7 rounded-lg text-slate-700 dark:text-slate-200 flex items-center justify-center font-black text-xs active:scale-90"
                       >
                         -
                       </button>
@@ -439,11 +439,11 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
                           updated[exIndex].sets[setIndex].reps = Number(e.target.value);
                           setExercises(updated);
                         }}
-                        className="w-9 sm:w-12 bg-white border border-slate-200 rounded-lg py-1 text-center font-mono text-xs sm:text-sm text-slate-900 font-bold focus:outline-none focus:border-emerald-500"
+                        className="clay-input w-10 sm:w-14 rounded-lg py-1 text-center font-mono text-xs sm:text-sm text-slate-800 dark:text-slate-100 font-black border-none"
                       />
                       <button
                         onClick={() => handleAdjustReps(exIndex, setIndex, 1)}
-                        className="w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs"
+                        className="clay-btn w-6 sm:w-7 h-6 sm:h-7 rounded-lg text-slate-700 dark:text-slate-200 flex items-center justify-center font-black text-xs active:scale-90"
                       >
                         +
                       </button>
@@ -455,8 +455,8 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
                         onClick={() => handleToggleSetCompleted(exIndex, setIndex)}
                         className={`w-7 sm:w-8 h-7 sm:h-8 rounded-xl flex items-center justify-center transition active:scale-90 ${
                           set.completed
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-400'
+                            ? 'clay-btn-lime'
+                            : 'clay-btn text-slate-400 dark:text-slate-500'
                         }`}
                         title="Mark set complete"
                         aria-label="Mark set complete"
@@ -469,16 +469,16 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               </div>
 
               {/* Add Set button */}
-              <div className="mt-3 flex justify-between items-center">
+              <div className="mt-3 flex justify-between items-center pt-2">
                 <button
                   onClick={() => handleAddSet(exIndex)}
-                  className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-emerald-700 flex items-center gap-1.5 transition border border-slate-200"
+                  className="clay-btn py-1.5 px-3 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition active:scale-95"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5 text-lime-600 dark:text-lime-400" />
                   <span>Add Set</span>
                 </button>
-                <span className="text-[11px] text-slate-500">
-                  Total Volume: {ex.sets.reduce((s, x) => s + (x.completed ? x.reps * x.weightKg : 0), 0)} kg
+                <span className="text-[11px] font-bold text-slate-400 font-mono">
+                  Volume: {ex.sets.reduce((s, x) => s + (x.completed ? x.reps * x.weightKg : 0), 0)} kg
                 </span>
               </div>
             </div>
@@ -494,32 +494,34 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-xl bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl relative text-left max-h-[85vh] flex flex-col"
+              className="w-full max-w-xl clay-card rounded-clay-card p-6 shadow-2xl relative text-left max-h-[85vh] flex flex-col"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Dumbbell className="w-5 h-5 text-emerald-600" />
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2 font-display">
+                  <div className="w-8 h-8 clay-pebble rounded-full flex items-center justify-center text-lime-600 dark:text-lime-400">
+                    <Dumbbell className="w-4 h-4" />
+                  </div>
                   <span>Exercise Library</span>
                 </h3>
                 <button
                   onClick={() => setIsPickerOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition"
+                  className="clay-pebble w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition"
                   aria-label="Close modal"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Search Bar */}
               <div className="py-3">
                 <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search barbell, squat, row, curls..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                    className="clay-input w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none border-none"
                   />
                 </div>
               </div>
@@ -530,10 +532,10 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
                   <button
                     key={mg}
                     onClick={() => setSelectedMuscleFilter(mg)}
-                    className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition ${
                       selectedMuscleFilter === mg
-                        ? 'bg-emerald-600 text-white font-bold'
-                        : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                        ? 'clay-btn-lime'
+                        : 'clay-btn text-slate-600 dark:text-slate-300'
                     }`}
                   >
                     {mg}
@@ -542,32 +544,32 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               </div>
 
               {/* Exercise Items List */}
-              <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {filteredLibrary.map((def) => (
                   <div
                     key={def.id}
                     onClick={() => handleAddExercise(def)}
-                    className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer flex items-center justify-between group"
+                    className="clay-card-flat p-3.5 rounded-2xl transition cursor-pointer flex items-center justify-between group hover:scale-[1.01]"
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition">
+                        <span className="font-black text-slate-800 dark:text-slate-100 text-sm group-hover:text-lime-600 dark:group-hover:text-lime-400 transition font-display">
                           {def.name}
                         </span>
                         {def.isCustom && (
-                          <span className="text-[9px] bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded font-semibold">
+                          <span className="text-[9px] clay-card-sky px-2 py-0.5 rounded-full font-black">
                             Custom
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-slate-500 capitalize">
+                      <span className="text-xs font-bold text-slate-400 capitalize">
                         {def.muscleGroup} • {def.equipment}
                       </span>
                     </div>
 
                     <button
                       type="button"
-                      className="w-8 h-8 rounded-xl bg-white border border-slate-200 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition"
+                      className="clay-pebble w-8 h-8 rounded-xl group-hover:clay-btn-lime flex items-center justify-center transition"
                     >
                       <Plus className="w-4 h-4 stroke-[3]" />
                     </button>
@@ -576,16 +578,16 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               </div>
 
               {/* Add Custom Exercise trigger */}
-              <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-                <span className="text-xs text-slate-500">
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400">
                   Can't find your exercise?
                 </span>
                 <button
                   onClick={() => setIsCustomModalOpen(true)}
-                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                  className="clay-btn-sky px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 active:scale-95 transition"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Create Custom Exercise</span>
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>Create Custom</span>
                 </button>
               </div>
             </motion.div>

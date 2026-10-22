@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Scale, Check, Calendar } from 'lucide-react';
+import { X, Scale, Check, Calendar, Minus, Plus } from 'lucide-react';
 import { WeightRecord, UserProfile } from '../../types';
 import { kgToLb, lbToKg } from '../../services/calculations';
 
@@ -20,7 +20,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
   const isMetric = profile.unitSystem !== 'imperial';
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [weightKg, setWeightKg] = useState<number>(profile.currentWeightKg || 75);
-  const [weightLb, setWeightLb] = useState<number>(kgToLb(profile.currentWeightKg || 75));
+  const [weightLb, setWeightLb] = useState<number>(Math.round(kgToLb(profile.currentWeightKg || 75) * 10) / 10);
   const [note, setNote] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,7 +59,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
             </button>
 
             <div className="flex items-center gap-3.5 mb-6">
-              <div className="w-12 h-12 rounded-full clay-pebble bg-clay-lime text-clay-text flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full clay-card-lime text-clay-text flex items-center justify-center shadow-sm">
                 <Scale className="w-6 h-6 stroke-[2.2]" />
               </div>
               <div>
@@ -72,9 +72,9 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                   Weigh-In Date
                 </label>
                 <div className="relative">
@@ -84,42 +84,169 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
                     required
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="clay-input w-full pl-11 pr-4 py-3 text-sm text-clay-text dark:text-white"
+                    className="clay-input w-full pl-11 pr-4 py-3 text-sm font-bold text-clay-text dark:text-white rounded-2xl"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-1.5">
-                  Body Weight ({isMetric ? 'kg' : 'lbs'})
-                </label>
+              {/* Clay Weight Selector */}
+              <div className="p-4 rounded-2xl clay-card-flat space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
+                    Body Weight ({isMetric ? 'kg' : 'lbs'})
+                  </label>
+                  <span className="text-xs font-bold text-slate-400">Tactile Stepper</span>
+                </div>
+
                 {isMetric ? (
-                  <input
-                    type="number"
-                    step={0.1}
-                    min={30}
-                    max={300}
-                    required
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(Number(e.target.value))}
-                    className="clay-input w-full px-4 py-3.5 text-3xl font-heading font-black text-clay-text dark:text-white font-mono text-center"
-                  />
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setWeightKg((prev) => Math.max(30, Math.round((prev - 0.1) * 10) / 10))}
+                        className="w-11 h-11 rounded-2xl clay-btn flex items-center justify-center text-clay-text dark:text-slate-200 active:scale-95 transition"
+                        aria-label="Decrease 0.1 kg"
+                      >
+                        <Minus className="w-5 h-5 stroke-[2.5]" />
+                      </button>
+                      <div className="clay-sunken flex-1 py-2 px-3 rounded-2xl text-center">
+                        <span className="text-3xl sm:text-4xl font-heading font-black text-clay-lime-dark dark:text-clay-lime font-mono">
+                          {weightKg.toFixed(1)}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400 block font-mono">kg</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setWeightKg((prev) => Math.min(250, Math.round((prev + 0.1) * 10) / 10))}
+                        className="w-11 h-11 rounded-2xl clay-btn flex items-center justify-center text-clay-text dark:text-slate-200 active:scale-95 transition"
+                        aria-label="Increase 0.1 kg"
+                      >
+                        <Plus className="w-5 h-5 stroke-[2.5]" />
+                      </button>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={40}
+                      max={180}
+                      step={0.1}
+                      value={weightKg}
+                      onChange={(e) => setWeightKg(Number(e.target.value))}
+                      className="clay-range my-2"
+                    />
+
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setWeightKg((prev) => Math.max(30, Math.round((prev - 1) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          -1kg
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWeightKg((prev) => Math.max(30, Math.round((prev - 0.5) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          -0.5kg
+                        </button>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setWeightKg((prev) => Math.min(250, Math.round((prev + 0.5) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          +0.5kg
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWeightKg((prev) => Math.min(250, Math.round((prev + 1) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          +1kg
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 ) : (
-                  <input
-                    type="number"
-                    step={0.2}
-                    min={66}
-                    max={660}
-                    required
-                    value={weightLb}
-                    onChange={(e) => setWeightLb(Number(e.target.value))}
-                    className="clay-input w-full px-4 py-3.5 text-3xl font-heading font-black text-clay-text dark:text-white font-mono text-center"
-                  />
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setWeightLb((prev) => Math.max(66, Math.round((prev - 0.2) * 10) / 10))}
+                        className="w-11 h-11 rounded-2xl clay-btn flex items-center justify-center text-clay-text dark:text-slate-200 active:scale-95 transition"
+                        aria-label="Decrease 0.2 lb"
+                      >
+                        <Minus className="w-5 h-5 stroke-[2.5]" />
+                      </button>
+                      <div className="clay-sunken flex-1 py-2 px-3 rounded-2xl text-center">
+                        <span className="text-3xl sm:text-4xl font-heading font-black text-clay-lime-dark dark:text-clay-lime font-mono">
+                          {weightLb.toFixed(1)}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400 block font-mono">lbs</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setWeightLb((prev) => Math.min(550, Math.round((prev + 0.2) * 10) / 10))}
+                        className="w-11 h-11 rounded-2xl clay-btn flex items-center justify-center text-clay-text dark:text-slate-200 active:scale-95 transition"
+                        aria-label="Increase 0.2 lb"
+                      >
+                        <Plus className="w-5 h-5 stroke-[2.5]" />
+                      </button>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={90}
+                      max={400}
+                      step={0.2}
+                      value={weightLb}
+                      onChange={(e) => setWeightLb(Number(e.target.value))}
+                      className="clay-range my-2"
+                    />
+
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setWeightLb((prev) => Math.max(66, Math.round((prev - 2) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          -2lbs
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWeightLb((prev) => Math.max(66, Math.round((prev - 0.5) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          -0.5lb
+                        </button>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setWeightLb((prev) => Math.min(550, Math.round((prev + 0.5) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          +0.5lb
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWeightLb((prev) => Math.min(550, Math.round((prev + 2) * 10) / 10))}
+                          className="clay-btn px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-slate-700 dark:text-slate-200 active:scale-95"
+                        >
+                          +2lbs
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-heading font-bold text-clay-text dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                   Optional Note
                 </label>
                 <input
@@ -127,7 +254,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="e.g. Fasted morning weigh-in, post-rest day"
-                  className="clay-input w-full px-4 py-3 text-sm text-clay-text dark:text-white placeholder:text-clay-text/40"
+                  className="clay-input w-full px-4 py-3 text-sm font-bold text-clay-text dark:text-white placeholder:text-clay-text/40 rounded-2xl"
                 />
               </div>
 
