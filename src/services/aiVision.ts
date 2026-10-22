@@ -1,6 +1,8 @@
 import { DetectedFoodCandidate } from '../types';
 
 export interface PhotoAnalysisResult {
+  isFood: boolean;
+  warningMessage?: string;
   title: string;
   items: DetectedFoodCandidate[];
   totalCalories: number;
@@ -94,15 +96,29 @@ export async function analyzeFoodPhoto(
       const { base64, mimeType } = await normalizeImageToBase64(imageBase64OrUrl);
 
       const prompt = `You are a certified sports nutritionist and nutritional AI for the Carbodate fitness app.
-Analyze this meal photo with high clinical precision.
+First, check whether the image depicts edible food, beverages, groceries, snacks, or a plated meal.
+
+If the image is NOT food-related (for example: it shows people, animals, vehicles, electronics, furniture, office interiors, documents, shoes, nature, or screenshots of code/text):
+Return strictly:
+{
+  "isFood": false,
+  "warningMessage": "Specify clearly what was detected in the photo (e.g. office interior, laptop, person, car, dog) and explain that no edible food or beverage was identified. Please upload or snap a picture of your meal.",
+  "title": "Non-Food Image",
+  "items": [],
+  "notes": ""
+}
+
+If the image IS food:
 1. Identify all visible food items, sides, proteins, starches, vegetables, sauces, and drinks.
 2. Estimate accurate portion weights (in grams, pieces, or volume) based on typical plate proportions.
 3. Calculate accurate calories, protein (g), carbohydrates (g), and fat (g) for each ingredient using USDA nutritional standards.
 4. Provide a confidence score (0.0 to 1.0) for visual identification.
 5. Provide a brief 1-2 sentence nutritional insight explaining the macro balance, nutrient density, and satiety profile.
 
-Return STRICT JSON ONLY conforming to this schema (no extra chatter, no markdown codeblocks):
+Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter):
 {
+  "isFood": true,
+  "warningMessage": "",
   "title": "Short appetizing name of the meal (e.g. Grilled Salmon with Quinoa & Steamed Greens)",
   "items": [
     {
@@ -156,6 +172,26 @@ Return STRICT JSON ONLY conforming to this schema (no extra chatter, no markdown
 
           if (rawText) {
             const parsed = extractAndParseJson(rawText);
+
+            // Handle non-food detection directly from Gemini
+            if (parsed.isFood === false) {
+              return {
+                isFood: false,
+                warningMessage:
+                  parsed.warningMessage ||
+                  'No edible food or drink was detected in this image. Please take or upload a photo of your meal.',
+                title: parsed.title || 'Non-Food Image Detected',
+                items: [],
+                totalCalories: 0,
+                totalProtein: 0,
+                totalCarbs: 0,
+                totalFat: 0,
+                notes: '',
+                source: 'gemini',
+                modelUsed: model,
+              };
+            }
+
             const items: DetectedFoodCandidate[] = (parsed.items || []).map((item: any) => ({
               name: String(item.name || 'Food Item'),
               portion: String(item.portion || '1 serving'),
@@ -166,24 +202,41 @@ Return STRICT JSON ONLY conforming to this schema (no extra chatter, no markdown
               confidence: Math.min(1, Math.max(0.5, Number(item.confidence) || 0.9)),
             }));
 
-            if (items.length > 0) {
-              const totalCalories = items.reduce((s, i) => s + i.calories, 0);
-              const totalProtein = items.reduce((s, i) => s + i.protein, 0);
-              const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
-              const totalFat = items.reduce((s, i) => s + i.fat, 0);
-
+            if (items.length === 0) {
               return {
-                title: parsed.title || 'Nutritionally Analyzed Meal',
-                items,
-                totalCalories: Math.round(totalCalories),
-                totalProtein: Math.round(totalProtein * 10) / 10,
-                totalCarbs: Math.round(totalCarbs * 10) / 10,
-                totalFat: Math.round(totalFat * 10) / 10,
-                notes: parsed.notes || 'Nutritional scan calculated via Gemini Vision AI.',
+                isFood: false,
+                warningMessage:
+                  parsed.warningMessage ||
+                  'No recognizable food items could be identified in this image. Please upload a clear photo of your meal or ingredients.',
+                title: 'No Food Detected',
+                items: [],
+                totalCalories: 0,
+                totalProtein: 0,
+                totalCarbs: 0,
+                totalFat: 0,
+                notes: '',
                 source: 'gemini',
                 modelUsed: model,
               };
             }
+
+            const totalCalories = items.reduce((s, i) => s + i.calories, 0);
+            const totalProtein = items.reduce((s, i) => s + i.protein, 0);
+            const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+            const totalFat = items.reduce((s, i) => s + i.fat, 0);
+
+            return {
+              isFood: true,
+              title: parsed.title || 'Nutritionally Analyzed Meal',
+              items,
+              totalCalories: Math.round(totalCalories),
+              totalProtein: Math.round(totalProtein * 10) / 10,
+              totalCarbs: Math.round(totalCarbs * 10) / 10,
+              totalFat: Math.round(totalFat * 10) / 10,
+              notes: parsed.notes || 'Nutritional scan calculated via Gemini Vision AI.',
+              source: 'gemini',
+              modelUsed: model,
+            };
           }
         } catch (modelErr) {
           console.warn(`Vision pipeline error with ${model}:`, modelErr);
@@ -236,6 +289,7 @@ Return STRICT JSON ONLY conforming to this schema (no extra chatter, no markdown
   const totalFat = picked.items.reduce((s, i) => s + i.fat, 0);
 
   return {
+    isFood: true,
     title: picked.title,
     items: picked.items,
     totalCalories: Math.round(totalCalories),

@@ -15,6 +15,7 @@ import {
   SwitchCamera,
   Layers,
   CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { analyzeFoodPhoto, PhotoAnalysisResult } from '../../services/aiVision';
 import { MealItem, MealType, DetectedFoodCandidate } from '../../types';
@@ -525,9 +526,23 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                         </span>
                       ) : (
                         scanResult && (
-                          <span className="clay-chip bg-black/70 text-white backdrop-blur-md text-[10px] font-mono px-3 py-1 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#B8F25B]" />
-                            {scanResult.source === 'gemini' ? 'GEMINI VISION AI' : 'NUTRITION ENGINE'}
+                          <span
+                            className={`clay-chip backdrop-blur-md text-[10px] font-mono px-3 py-1 flex items-center gap-1.5 ${
+                              !scanResult.isFood
+                                ? 'bg-rose-950/80 text-rose-300 border border-rose-500/30'
+                                : 'bg-black/70 text-white'
+                            }`}
+                          >
+                            {!scanResult.isFood ? (
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 stroke-[2.5]" />
+                            ) : (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#B8F25B]" />
+                            )}
+                            {!scanResult.isFood
+                              ? 'NON-FOOD DETECTED'
+                              : scanResult.source === 'gemini'
+                              ? 'GEMINI VISION AI'
+                              : 'NUTRITION ENGINE'}
                           </span>
                         )
                       )}
@@ -547,8 +562,72 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                     </div>
                   )}
 
-                  {/* RESULTS DISPLAY */}
-                  {scanResult && !isScanning && (
+                  {/* NON-FOOD WARNING DISPLAY */}
+                  {scanResult && !isScanning && !scanResult.isFood && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="p-6 rounded-3xl clay-card-coral space-y-4 text-center border-2 border-rose-300/60 dark:border-rose-900/40"
+                    >
+                      <div className="w-14 h-14 rounded-2xl clay-pebble text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-sm">
+                        <AlertTriangle className="w-7 h-7 stroke-[2.3]" />
+                      </div>
+
+                      <div>
+                        <h4 className="text-xl font-heading font-black text-rose-950 dark:text-rose-100 tracking-tight">
+                          Non-Food Photo Detected
+                        </h4>
+                        <p className="text-xs font-bold text-rose-900/80 dark:text-rose-200/90 mt-1.5 leading-relaxed max-w-md mx-auto">
+                          {scanResult.warningMessage ||
+                            'The uploaded image does not appear to contain edible food or beverages. Calorie calculation requires a photo of a meal, snack, or drink.'}
+                        </p>
+                      </div>
+
+                      {/* Helpful Guidelines Card */}
+                      <div className="p-4 rounded-2xl clay-sunken text-left text-xs space-y-1.5">
+                        <span className="font-heading font-black text-slate-700 dark:text-slate-200 block text-[11px] uppercase tracking-wider">
+                          Tips for reliable recognition:
+                        </span>
+                        <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 list-disc pl-4 font-bold">
+                          <li>Point your camera directly over your plate, bowl, or snack container with decent lighting</li>
+                          <li>Include all sides, drinks, and garnishes in the frame</li>
+                          <li>Avoid capturing non-food objects, animals, vehicles, documents, or screenshots</li>
+                        </ul>
+                      </div>
+
+                      {/* Immediate Retake Controls */}
+                      <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImagePreview(null);
+                            setScanResult(null);
+                            startCamera('environment');
+                          }}
+                          className="flex-1 py-3.5 px-4 rounded-2xl clay-btn-lime font-heading font-black text-xs text-clay-text flex items-center justify-center gap-2 active:scale-95 shadow-sm"
+                        >
+                          <Camera className="w-4 h-4 stroke-[2.2]" />
+                          <span>Snap Photo of Food</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImagePreview(null);
+                            setScanResult(null);
+                            fileInputRef.current?.click();
+                          }}
+                          className="flex-1 py-3.5 px-4 rounded-2xl clay-btn font-heading font-black text-xs text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 active:scale-95"
+                        >
+                          <Upload className="w-4 h-4 stroke-[2.2]" />
+                          <span>Choose Another File</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* VALID FOOD RESULTS DISPLAY */}
+                  {scanResult && !isScanning && scanResult.isFood && (
                     <div className="space-y-4">
                       {/* Meal Title & Meal Type Pill Selection */}
                       <div className="space-y-3">
@@ -742,8 +821,8 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
               )}
             </div>
 
-            {/* Bottom Actions Bar */}
-            {scanResult && !isScanning && (
+            {/* Bottom Actions Bar for Valid Food */}
+            {scanResult && !isScanning && scanResult.isFood && (
               <div className="pt-4 mt-3 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center gap-3">
                 <button
                   type="button"
