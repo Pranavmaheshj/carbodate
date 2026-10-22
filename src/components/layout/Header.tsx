@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Sun, Moon, Palette } from 'lucide-react';
+import { ShieldAlert, Sun, Moon } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { NavTab } from './BottomNav';
 
@@ -19,7 +19,6 @@ const TAB_TITLES: Record<NavTab, string> = {
   food: 'Nutrition & Deficit',
   progress: 'Analytics & Trends',
   profile: 'Profile & Settings',
-  styleguide: 'Claymorphism Style Guide',
 };
 
 export const Header: React.FC<HeaderProps> = ({
@@ -71,21 +70,6 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right controls */}
       <div className="flex items-center gap-2.5">
-        {/* Clay Style Guide Button Pill */}
-        <button
-          onClick={() => onTabChange('styleguide')}
-          className={`px-3 py-2 rounded-full font-heading font-extrabold text-xs flex items-center gap-1.5 transition-all ${
-            currentTab === 'styleguide'
-              ? 'clay-btn-butter text-clay-text scale-105'
-              : 'clay-btn text-clay-text dark:text-white'
-          }`}
-          title="Open Claymorphism Style Guide"
-          aria-label="Claymorphism Style Guide"
-        >
-          <Palette className="w-4 h-4 stroke-[2.2] text-clay-lilac-dark" />
-          <span className="hidden sm:inline">Style Guide</span>
-        </button>
-
         {/* Dark Mode Toggle Pebble */}
         {onToggleTheme && (
           <button

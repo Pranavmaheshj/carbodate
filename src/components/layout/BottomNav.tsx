@@ -1,7 +1,7 @@
 import React from 'react';
 import { Home, Compass, Dumbbell, UtensilsCrossed, TrendingUp, Play } from 'lucide-react';
 
-export type NavTab = 'dashboard' | 'activity' | 'gym' | 'food' | 'progress' | 'profile' | 'styleguide';
+export type NavTab = 'dashboard' | 'activity' | 'gym' | 'food' | 'progress' | 'profile';
 
 interface BottomNavProps {
   currentTab: NavTab;

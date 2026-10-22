@@ -41,7 +41,6 @@ import { BadgesMilestones } from './components/dashboard/BadgesMilestones';
 import { ProfileSettings } from './components/profile/ProfileSettings';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { AuthModal } from './components/onboarding/AuthModal';
-import { ClayStyleGuide } from './components/styleguide/ClayStyleGuide';
 
 export function App() {
   // Ensure storage is initialized cleanly without mock injection
@@ -446,15 +445,6 @@ export function App() {
               onUpdateProfile={handleUpdateProfile}
               onOpenDisclaimer={() => setIsDisclaimerOpen(true)}
               onResetAllData={handleResetAllData}
-              isDark={isDark}
-              onToggleTheme={() => setIsDark(!isDark)}
-            />
-          )}
-
-          {/* TAB 7: CLAYMORPHISM STYLE GUIDE */}
-          {currentTab === 'styleguide' && (
-            <ClayStyleGuide
-              onBackToDashboard={() => setCurrentTab('dashboard')}
               isDark={isDark}
               onToggleTheme={() => setIsDark(!isDark)}
             />

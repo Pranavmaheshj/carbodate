@@ -7,7 +7,6 @@ import {
   TrendingUp,
   User,
   Play,
-  Palette,
   ShieldCheck,
   Sun,
   Moon,
@@ -41,7 +40,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
     { id: 'food' as NavTab, label: 'Nutrition & Meals', icon: UtensilsCrossed, accent: 'bg-clay-butter' },
     { id: 'progress' as NavTab, label: 'Analytics & Trends', icon: TrendingUp, accent: 'bg-clay-lime' },
     { id: 'profile' as NavTab, label: 'Profile & Settings', icon: User, accent: 'bg-clay-lilac' },
-    { id: 'styleguide' as NavTab, label: 'Clay Style Guide', icon: Palette, accent: 'bg-clay-butter' },
   ];
 
   return (
