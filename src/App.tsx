@@ -533,7 +533,7 @@ export function App() {
         isOpen={isPhotoScanOpen}
         onClose={() => setIsPhotoScanOpen(false)}
         onSaveMeal={handleSaveMeal}
-        userId={profile.id}
+        userId={profile?.id || 'user_guest'}
       />
     </div>
   );

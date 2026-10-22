@@ -330,6 +330,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
         onClose={() => setIsPhotoModalOpen(false)}
         onSaveMeal={onSaveMeal}
         userId={profile.id}
+        initialMealType={activeMealTypeForAdd}
       />
 
       {/* Search / Manual Add Food Modal */}
