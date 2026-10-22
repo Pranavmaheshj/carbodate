@@ -13,6 +13,8 @@ import {
   Zap,
   Info,
   User,
+  Cloud,
+  Lock,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -34,12 +36,14 @@ interface OnboardingWizardProps {
   initialProfile?: UserProfile | null;
   onComplete: (profile: UserProfile) => void;
   onCancel?: () => void;
+  onOpenAuth?: () => void;
 }
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   initialProfile,
   onComplete,
   onCancel,
+  onOpenAuth,
 }) => {
   const [step, setStep] = useState<number>(1);
 
@@ -116,6 +120,25 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
   return (
     <div className="min-h-[100dvh] bg-[#EEF0FB] dark:bg-[#151722] flex flex-col items-center justify-start sm:justify-center p-3 sm:p-6 text-slate-800 dark:text-slate-100 py-6 sm:py-10">
+      {/* Top Login Prompt for Returning Users */}
+      {onOpenAuth && (
+        <div className="w-full max-w-xl mb-3.5 flex items-center justify-between px-4 py-2.5 rounded-2xl clay-card-sky">
+          <div className="flex items-center gap-2">
+            <Cloud className="w-4 h-4 text-clay-text shrink-0" />
+            <span className="text-xs font-bold text-clay-text">
+              Already have an account or saved data?
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenAuth}
+            className="clay-btn-lime px-3.5 py-1.5 rounded-full text-xs font-heading font-black text-clay-text shadow-sm active:scale-95 transition"
+          >
+            Log In & Sync
+          </button>
+        </div>
+      )}
+
       {/* Top Progress bar */}
       <div className="w-full max-w-xl mb-4 sm:mb-6 text-left">
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2 font-display font-black">
@@ -152,13 +175,26 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <div>
-                <h2 className="text-2xl font-black tracking-tight text-slate-800 dark:text-slate-100 font-display">
-                  Welcome to Carbodate
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Let's personalize your metabolic profile and caloric deficit targets.
-                </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-slate-800 dark:text-slate-100 font-display">
+                    Welcome to Carbodate
+                  </h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Let's personalize your metabolic profile and caloric deficit targets.
+                  </p>
+                </div>
+                {onOpenAuth && (
+                  <button
+                    type="button"
+                    onClick={onOpenAuth}
+                    className="clay-btn-sky px-3 py-1.5 rounded-full text-xs font-heading font-black text-clay-text shrink-0 flex items-center gap-1.5 shadow-sm active:scale-95 transition"
+                    title="Sign In with existing account"
+                  >
+                    <Cloud className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Sign In</span>
+                  </button>
+                )}
               </div>
 
               {/* Unit System Toggle */}
@@ -1005,6 +1041,32 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Optional Supabase Cloud Sync prompt */}
+              {onOpenAuth && (
+                <div className="clay-sunken rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full clay-card-sky flex items-center justify-center text-clay-text shrink-0">
+                      <Cloud className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-heading font-black text-slate-800 dark:text-slate-100 block">
+                        Want cross-device cloud sync?
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        Log in or create a free account to save this plan forever.
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onOpenAuth}
+                    className="clay-btn-sky px-4 py-2 rounded-full text-xs font-heading font-black text-clay-text shrink-0 active:scale-95 transition"
+                  >
+                    Save & Sign In
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

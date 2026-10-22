@@ -136,8 +136,9 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           {/* Cloud Sync Account Profile Card */}
           {profile ? (
             <div
-              onClick={() => onTabChange('profile')}
+              onClick={onOpenAuth}
               className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-100/60 dark:hover:bg-slate-800/40 transition cursor-pointer clay-sunken"
+              title="Click to manage account & cloud sync"
             >
               <div className="w-10 h-10 rounded-full clay-card-lime flex items-center justify-center font-heading font-black text-sm text-clay-text shadow-xs flex-shrink-0">
                 {profile.name.charAt(0) || 'U'}

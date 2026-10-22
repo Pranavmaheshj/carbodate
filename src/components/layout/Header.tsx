@@ -74,13 +74,13 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2.5">
         {/* Cloud Sync / Account Button */}
         <button
-          onClick={profile ? () => onTabChange('profile') : onOpenAuth}
+          onClick={onOpenAuth}
           className={`px-3 py-2 rounded-full font-heading font-black text-xs flex items-center gap-1.5 transition-all active:scale-95 ${
             profile
               ? 'clay-btn-lime text-clay-text shadow-sm'
               : 'clay-btn-sky text-clay-text shadow-sm'
           }`}
-          title={profile ? `Logged in as ${profile.name} (Cloud Sync Active)` : 'Sign in to store data'}
+          title={profile ? `Account: ${profile.name} (Click to manage login & sync)` : 'Sign in to store data'}
           aria-label="Account and Cloud Sync"
         >
           <Cloud className="w-3.5 h-3.5 stroke-[2.5]" />

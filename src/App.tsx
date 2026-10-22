@@ -273,14 +273,26 @@ export function App() {
   // If user opened onboarding wizard or has no profile
   if (isOnboardingOpen || !profile) {
     return (
-      <OnboardingWizard
-        initialProfile={profile}
-        onComplete={(newProfile) => {
-          handleUpdateProfile(newProfile);
-          setIsOnboardingOpen(false);
-        }}
-        onCancel={profile ? () => setIsOnboardingOpen(false) : undefined}
-      />
+      <>
+        <OnboardingWizard
+          initialProfile={profile}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onComplete={(newProfile) => {
+            handleUpdateProfile(newProfile);
+            setIsOnboardingOpen(false);
+          }}
+          onCancel={profile ? () => setIsOnboardingOpen(false) : undefined}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthSuccess={(newProf) => {
+            handleUpdateProfile(newProf);
+            setIsAuthModalOpen(false);
+            setIsOnboardingOpen(false);
+          }}
+        />
+      </>
     );
   }
 
@@ -598,6 +610,7 @@ export function App() {
           handleUpdateProfile(newProf);
           setIsAuthModalOpen(false);
         }}
+        onSignOut={handleSignOut}
       />
 
       {/* 8. AI Photo Scan Direct Modal */}
