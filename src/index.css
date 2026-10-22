@@ -1,0 +1,90 @@
+@import './styles/clay.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: #EEF0FB;
+  color: #2B2D42;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.dark,
+.dark body,
+body.dark {
+  background-color: #1B1D2B;
+  color: #E2E4F0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Nunito', 'Baloo 2', sans-serif;
+  font-weight: 800;
+  color: #2B2D42;
+}
+
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: #F3F4F9;
+}
+
+/* Crisp Clean Scrollbars for Clay */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #E4E7F5;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4C8DE;
+  border-radius: 9999px;
+  box-shadow: inset 1px 1px 3px rgba(255, 255, 255, 0.6);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A4A9C4;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #171824;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #363957;
+}
+
+/* Leaflet Clean Map adjustments */
+.leaflet-container {
+  font-family: 'DM Sans', inherit;
+  background: #E8EBF8;
+  border-radius: 28px;
+}
+
+/* Safe areas for mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 16px);
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
