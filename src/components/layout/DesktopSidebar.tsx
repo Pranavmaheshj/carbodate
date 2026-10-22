@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   Sun,
   Moon,
+  Cloud,
+  ArrowRight,
 } from 'lucide-react';
 import { NavTab } from './BottomNav';
 import { UserProfile } from '../../types';
@@ -20,6 +22,7 @@ interface DesktopSidebarProps {
   onQuickStart: () => void;
   profile: UserProfile | null;
   onOpenDisclaimer: () => void;
+  onOpenAuth?: () => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
 }
@@ -30,6 +33,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onQuickStart,
   profile,
   onOpenDisclaimer,
+  onOpenAuth,
   isDark,
   onToggleTheme,
 }) => {
@@ -129,23 +133,47 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             </button>
           )}
 
-          {profile && (
+          {/* Cloud Sync Account Profile Card */}
+          {profile ? (
             <div
               onClick={() => onTabChange('profile')}
-              className="flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-100/60 dark:hover:bg-slate-800/40 transition cursor-pointer"
+              className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-100/60 dark:hover:bg-slate-800/40 transition cursor-pointer clay-sunken"
             >
-              <div className="w-10 h-10 rounded-full clay-card-sky flex items-center justify-center font-heading font-black text-sm text-clay-text">
+              <div className="w-10 h-10 rounded-full clay-card-lime flex items-center justify-center font-heading font-black text-sm text-clay-text shadow-xs flex-shrink-0">
                 {profile.name.charAt(0) || 'U'}
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <span className="text-sm font-heading font-extrabold text-clay-text dark:text-white truncate block">
-                  {profile.name}
-                </span>
-                <span className="text-[11px] text-clay-text-sub dark:text-slate-400 capitalize block">
-                  Goal: {profile.goal} fat
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-heading font-black text-clay-text dark:text-white truncate block">
+                    {profile.name}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Cloud Sync Active" />
+                </div>
+                <span className="text-[10px] text-clay-text-sub dark:text-slate-400 truncate block font-mono">
+                  {profile.email || 'Cloud Synced'}
                 </span>
               </div>
             </div>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="w-full p-3 rounded-2xl clay-btn-lime flex items-center justify-between text-left active:scale-95 transition"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full clay-pebble flex items-center justify-center text-slate-800">
+                  <Cloud className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-heading font-black text-xs text-clay-text block leading-tight">
+                    Sign In & Sync
+                  </span>
+                  <span className="text-[10px] text-clay-text/70 block font-bold">
+                    Store data in cloud
+                  </span>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-clay-text" />
+            </button>
           )}
 
           {/* Legal link */}

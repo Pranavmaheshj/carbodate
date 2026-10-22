@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Sun, Moon } from 'lucide-react';
+import { ShieldAlert, Sun, Moon, Cloud, User } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { NavTab } from './BottomNav';
 
@@ -8,6 +8,7 @@ interface HeaderProps {
   profile: UserProfile | null;
   onTabChange: (tab: NavTab) => void;
   onOpenDisclaimer: () => void;
+  onOpenAuth?: () => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
 }
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   profile,
   onTabChange,
   onOpenDisclaimer,
+  onOpenAuth,
   isDark,
   onToggleTheme,
 }) => {
@@ -70,6 +72,26 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right controls */}
       <div className="flex items-center gap-2.5">
+        {/* Cloud Sync / Account Button */}
+        <button
+          onClick={profile ? () => onTabChange('profile') : onOpenAuth}
+          className={`px-3 py-2 rounded-full font-heading font-black text-xs flex items-center gap-1.5 transition-all active:scale-95 ${
+            profile
+              ? 'clay-btn-lime text-clay-text shadow-sm'
+              : 'clay-btn-sky text-clay-text shadow-sm'
+          }`}
+          title={profile ? `Logged in as ${profile.name} (Cloud Sync Active)` : 'Sign in to store data'}
+          aria-label="Account and Cloud Sync"
+        >
+          <Cloud className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span className="hidden sm:inline">
+            {profile ? profile.name.split(' ')[0] : 'Sign In & Sync'}
+          </span>
+          {profile && (
+            <span className="w-2 h-2 rounded-full bg-emerald-700 animate-pulse" />
+          )}
+        </button>
+
         {/* Dark Mode Toggle Pebble */}
         {onToggleTheme && (
           <button

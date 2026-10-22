@@ -95,6 +95,10 @@ export const StorageService = {
     return getJSON<ActivityRecord[]>(STORAGE_KEYS.ACTIVITIES, []);
   },
 
+  setActivities(activities: ActivityRecord[]): void {
+    setJSON(STORAGE_KEYS.ACTIVITIES, activities);
+  },
+
   saveActivity(activity: ActivityRecord): void {
     const list = this.getActivities();
     const updated = [activity, ...list];
@@ -110,6 +114,10 @@ export const StorageService = {
   // GYM WORKOUT SESSIONS
   getGymSessions(): GymWorkoutSession[] {
     return getJSON<GymWorkoutSession[]>(STORAGE_KEYS.GYM_SESSIONS, []);
+  },
+
+  setGymSessions(sessions: GymWorkoutSession[]): void {
+    setJSON(STORAGE_KEYS.GYM_SESSIONS, sessions);
   },
 
   saveGymSession(session: GymWorkoutSession): void {
@@ -145,6 +153,10 @@ export const StorageService = {
     return all.filter((m) => m.date === dateStr);
   },
 
+  setMeals(meals: MealItem[]): void {
+    setJSON(STORAGE_KEYS.MEALS, meals);
+  },
+
   saveMeal(meal: MealItem): void {
     const all = getJSON<MealItem[]>(STORAGE_KEYS.MEALS, []);
     const updated = [meal, ...all];
@@ -172,22 +184,31 @@ export const StorageService = {
     return 0;
   },
 
-  addWater(amountMl: number, dateStr?: string): number {
+  setWater(amountMl: number, dateStr?: string): void {
     const todayStr = dateStr || new Date().toISOString().split('T')[0];
-    const current = this.getWaterLog(todayStr);
-    const updatedAmount = Math.max(0, current + amountMl);
     setJSON<WaterLog>(STORAGE_KEYS.WATER, {
       id: `water_${todayStr}`,
       userId: 'usr_carbodate',
       date: todayStr,
-      amountMl: updatedAmount,
+      amountMl: Math.max(0, amountMl),
     });
+  },
+
+  addWater(amountMl: number, dateStr?: string): number {
+    const todayStr = dateStr || new Date().toISOString().split('T')[0];
+    const current = this.getWaterLog(todayStr);
+    const updatedAmount = Math.max(0, current + amountMl);
+    this.setWater(updatedAmount, todayStr);
     return updatedAmount;
   },
 
   // WEIGHTS
   getWeightRecords(): WeightRecord[] {
     return getJSON<WeightRecord[]>(STORAGE_KEYS.WEIGHTS, []);
+  },
+
+  setWeights(weights: WeightRecord[]): void {
+    setJSON(STORAGE_KEYS.WEIGHTS, weights);
   },
 
   saveWeightRecord(record: WeightRecord): void {
@@ -212,6 +233,40 @@ export const StorageService = {
   // BADGES
   getBadges(): MilestoneBadge[] {
     return getJSON<MilestoneBadge[]>(STORAGE_KEYS.BADGES, INITIAL_BADGES);
+  },
+
+  setBadges(badges: MilestoneBadge[]): void {
+    setJSON(STORAGE_KEYS.BADGES, badges);
+  },
+
+  // FULL STATE PAYLOAD HYDRATION
+  getFullPayload(dateStr?: string) {
+    const todayStr = dateStr || new Date().toISOString().split('T')[0];
+    return {
+      profile: this.getProfile(),
+      activities: this.getActivities(),
+      gymSessions: this.getGymSessions(),
+      workoutPlan: this.getWorkoutPlan(),
+      meals: this.getMeals(),
+      weights: this.getWeightRecords(),
+      waterMl: this.getWaterLog(todayStr),
+      badges: this.getBadges(),
+      lastSyncedAt: new Date().toISOString(),
+    };
+  },
+
+  hydrateFromPayload(payload: any): void {
+    if (payload.profile) this.saveProfile(payload.profile);
+    if (payload.activities) this.setActivities(payload.activities);
+    if (payload.gymSessions) this.setGymSessions(payload.gymSessions);
+    if (payload.workoutPlan) this.saveWorkoutPlan(payload.workoutPlan);
+    if (payload.meals) this.setMeals(payload.meals);
+    if (payload.weights) this.setWeights(payload.weights);
+    if (payload.badges) this.setBadges(payload.badges);
+    if (typeof payload.waterMl === 'number') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      this.setWater(payload.waterMl, todayStr);
+    }
   },
 
   checkAndUpdateBadges(lastActivity?: ActivityRecord): void {

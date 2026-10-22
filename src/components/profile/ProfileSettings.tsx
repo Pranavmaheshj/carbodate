@@ -21,6 +21,9 @@ import {
   Plus,
   Mail,
   ChevronRight,
+  Cloud,
+  LogOut,
+  RefreshCw,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -38,6 +41,7 @@ import {
   ftInToCm
 } from '../../services/calculations';
 import { StorageService } from '../../services/storage';
+import { CloudSync } from '../../services/cloudSync';
 import { WeightGauge } from '../common/WeightGauge';
 
 interface ProfileSettingsProps {
@@ -46,6 +50,8 @@ interface ProfileSettingsProps {
   onUpdateProfile: (profile: UserProfile) => void;
   onOpenDisclaimer: () => void;
   onResetAllData?: () => void;
+  onOpenAuth?: () => void;
+  onSignOut?: () => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
 }
@@ -56,6 +62,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   onUpdateProfile,
   onOpenDisclaimer,
   onResetAllData,
+  onOpenAuth,
+  onSignOut,
   isDark,
   onToggleTheme,
 }) => {
@@ -63,6 +71,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [name, setName] = useState(profile.name);
   const [email, setEmail] = useState(profile.email);
   const [age, setAge] = useState(profile.age);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
   const [gender, setGender] = useState<Gender>(profile.gender);
   const [heightCm, setHeightCm] = useState(profile.heightCm);
 
@@ -958,6 +968,94 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
           )}
         </button>
       </form>
+
+      {/* Account & Supabase Cloud Storage */}
+      <div className="clay-card rounded-clay-card p-6 sm:p-7 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
+          <div>
+            <h4 className="text-xl sm:text-2xl font-heading font-black text-clay-text dark:text-white tracking-tight flex items-center gap-2">
+              <Cloud className="w-6 h-6 text-clay-sky-dark dark:text-clay-sky" />
+              <span>Account & Cloud Storage</span>
+            </h4>
+            <span className="text-xs font-bold text-clay-text/60 dark:text-slate-400">
+              Personalized data persistence powered by Supabase
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 self-start sm:self-center">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400">
+              Supabase Connected
+            </span>
+          </div>
+        </div>
+
+        {/* Account Details Tile */}
+        <div className="p-4 rounded-2xl clay-sunken flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl clay-card-lime flex items-center justify-center text-clay-text font-heading font-black text-lg">
+              {profile.name.charAt(0) || 'U'}
+            </div>
+            <div>
+              <span className="font-heading font-black text-sm text-clay-text dark:text-white block">
+                {profile.name}
+              </span>
+              <span className="text-xs font-mono text-clay-text/60 dark:text-slate-400 block">
+                {profile.email}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isSyncing}
+              onClick={async () => {
+                setIsSyncing(true);
+                const ok = await CloudSync.pushToCloud(StorageService.getFullPayload());
+                setIsSyncing(false);
+                if (ok) {
+                  setSyncSuccess(true);
+                  setTimeout(() => setSyncSuccess(false), 2500);
+                }
+              }}
+              className="py-2 px-3.5 rounded-xl clay-btn text-clay-text dark:text-slate-200 font-heading font-bold text-xs flex items-center gap-1.5 active:scale-95"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{syncSuccess ? 'Synced!' : isSyncing ? 'Syncing...' : 'Sync Cloud'}</span>
+            </button>
+
+            {onOpenAuth && (
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="py-2 px-3.5 rounded-xl clay-btn-sky text-clay-text font-heading font-bold text-xs flex items-center gap-1.5 active:scale-95"
+              >
+                <span>Switch / Login</span>
+              </button>
+            )}
+
+            {onSignOut && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Are you sure you want to sign out from this account?')) {
+                    onSignOut();
+                  }
+                }}
+                className="py-2 px-3 rounded-xl clay-btn text-rose-500 font-heading font-bold text-xs flex items-center gap-1 active:scale-95"
+                title="Sign out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <p className="text-[11px] font-bold text-clay-text/60 dark:text-slate-400">
+          Your profile, calorie target, logged meals, gym workouts, body weights, and activity routes are permanently saved to your account.
+        </p>
+      </div>
 
       {/* Data Management */}
       <div className="clay-card rounded-clay-card p-6 sm:p-7 space-y-5">

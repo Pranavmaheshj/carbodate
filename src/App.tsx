@@ -14,6 +14,7 @@ import {
   ActivityType
 } from './types';
 import { computeProfileCalculations } from './services/calculations';
+import { CloudSync } from './services/cloudSync';
 
 // Layout & Navigation
 import { Header } from './components/layout/Header';
@@ -43,9 +44,46 @@ import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { AuthModal } from './components/onboarding/AuthModal';
 
 export function App() {
-  // Ensure storage is initialized cleanly without mock injection
+  // Ensure storage is initialized cleanly and listen to Supabase auth / cloud sync
   useEffect(() => {
     StorageService.ensureInitialized();
+
+    // Check for Supabase session and load cloud sync data
+    CloudSync.getCurrentUser().then(async (auth) => {
+      if (auth.isAuthenticated) {
+        const cloudData = await CloudSync.pullFromCloud();
+        if (cloudData && cloudData.profile) {
+          StorageService.hydrateFromPayload(cloudData);
+          setProfile(cloudData.profile);
+          setActivities(cloudData.activities || []);
+          setMeals((cloudData.meals || []).filter((m) => m.date === todayStr));
+          setGymSessions(cloudData.gymSessions || []);
+          setWeights(cloudData.weights || []);
+          setWorkoutPlan(cloudData.workoutPlan || null);
+          setBadges(cloudData.badges || StorageService.getBadges());
+        }
+      }
+    });
+
+    const authSub = CloudSync.onAuthStateChange(async (auth) => {
+      if (auth.isAuthenticated) {
+        const cloudData = await CloudSync.pullFromCloud();
+        if (cloudData && cloudData.profile) {
+          StorageService.hydrateFromPayload(cloudData);
+          setProfile(cloudData.profile);
+          setActivities(cloudData.activities || []);
+          setMeals((cloudData.meals || []).filter((m) => m.date === todayStr));
+          setGymSessions(cloudData.gymSessions || []);
+          setWeights(cloudData.weights || []);
+          setWorkoutPlan(cloudData.workoutPlan || null);
+          setBadges(cloudData.badges || StorageService.getBadges());
+        }
+      }
+    });
+
+    return () => {
+      authSub.unsubscribe();
+    };
   }, []);
 
   const [profile, setProfile] = useState<UserProfile | null>(() => StorageService.getProfile());
@@ -124,6 +162,11 @@ export function App() {
     }
   }, [isDark]);
 
+  // Cloud Synchronization helper
+  const syncToCloud = () => {
+    CloudSync.pushToCloud(StorageService.getFullPayload(todayStr));
+  };
+
   // Handlers
   const handleSaveActivity = (activity: ActivityRecord) => {
     StorageService.saveActivity(activity);
@@ -131,17 +174,20 @@ export function App() {
     setBadges(StorageService.getBadges());
     setIsLiveGpsOpen(false);
     setSummaryActivity(activity);
+    syncToCloud();
   };
 
   const handleDeleteActivity = (id: string) => {
     StorageService.deleteActivity(id);
     setActivities(StorageService.getActivities());
+    syncToCloud();
   };
 
   const handleFinishGymWorkout = (session: GymWorkoutSession) => {
     StorageService.saveGymSession(session);
     setGymSessions(StorageService.getGymSessions());
     setIsGymLoggerOpen(false);
+    syncToCloud();
     alert(`Crushed it! "${session.title}" saved. Burned ~${session.caloriesBurned} kcal.`);
   };
 
@@ -149,27 +195,32 @@ export function App() {
     StorageService.saveMeal(meal);
     setMeals(StorageService.getMeals(todayStr));
     setBadges(StorageService.getBadges());
+    syncToCloud();
   };
 
   const handleDeleteMeal = (id: string) => {
     StorageService.deleteMeal(id);
     setMeals(StorageService.getMeals(todayStr));
+    syncToCloud();
   };
 
   const handleToggleMealFavorite = (id: string) => {
     StorageService.toggleMealFavorite(id);
     setMeals(StorageService.getMeals(todayStr));
+    syncToCloud();
   };
 
   const handleAddWater = (amount: number) => {
     const updated = StorageService.addWater(amount, todayStr);
     setWaterMl(updated);
     setBadges(StorageService.getBadges());
+    syncToCloud();
   };
 
   const handleResetWater = () => {
     StorageService.addWater(-waterMl, todayStr);
     setWaterMl(0);
+    syncToCloud();
   };
 
   const handleSaveWeight = (record: WeightRecord) => {
@@ -178,16 +229,19 @@ export function App() {
     if (profile) {
       setProfile({ ...profile, currentWeightKg: record.weightKg });
     }
+    syncToCloud();
   };
 
   const handleUpdateProfile = (updated: UserProfile) => {
     StorageService.saveProfile(updated);
     setProfile(updated);
+    syncToCloud();
   };
 
   const handleUpdateWorkoutPlan = (plan: WorkoutPlan) => {
     StorageService.saveWorkoutPlan(plan);
     setWorkoutPlan(plan);
+    syncToCloud();
   };
 
   const handleResetAllData = () => {
@@ -200,6 +254,20 @@ export function App() {
     setWeights([]);
     setWaterMl(0);
     setBadges(StorageService.getBadges());
+  };
+
+  const handleSignOut = async () => {
+    await CloudSync.signOut();
+    StorageService.clearAllData();
+    setProfile(null);
+    setActivities([]);
+    setGymSessions([]);
+    setWorkoutPlan(null);
+    setMeals([]);
+    setWeights([]);
+    setWaterMl(0);
+    setBadges(StorageService.getBadges());
+    setIsOnboardingOpen(true);
   };
 
   // If user opened onboarding wizard or has no profile
@@ -233,6 +301,7 @@ export function App() {
         onQuickStart={() => setIsQuickStartOpen(true)}
         profile={profile}
         onOpenDisclaimer={() => setIsDisclaimerOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
       />
@@ -245,6 +314,7 @@ export function App() {
           profile={profile}
           onTabChange={setCurrentTab}
           onOpenDisclaimer={() => setIsDisclaimerOpen(true)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
           isDark={isDark}
           onToggleTheme={() => setIsDark(!isDark)}
         />
@@ -445,6 +515,8 @@ export function App() {
               onUpdateProfile={handleUpdateProfile}
               onOpenDisclaimer={() => setIsDisclaimerOpen(true)}
               onResetAllData={handleResetAllData}
+              onOpenAuth={() => setIsAuthModalOpen(true)}
+              onSignOut={handleSignOut}
               isDark={isDark}
               onToggleTheme={() => setIsDark(!isDark)}
             />
