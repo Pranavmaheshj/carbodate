@@ -185,7 +185,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-7 pt-6 border-t border-slate-200/60 dark:border-slate-700/60">
           <button
             onClick={() => setIsPhotoModalOpen(true)}
-            className="py-3 px-5 rounded-clay-btn clay-btn-sky text-clay-text font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
+            className="py-3.5 px-5 rounded-clay-btn clay-btn-sky text-slate-900 font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 active:scale-95 transition shadow-sm"
           >
             <Camera className="w-4 h-4 stroke-[2.5]" />
             <span>AI Photo Calorie Scan</span>
@@ -193,10 +193,12 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
 
           <button
             onClick={() => handleOpenAdd('breakfast')}
-            className="py-3 px-5 rounded-clay-btn clay-btn-lime text-clay-text font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
+            className="py-3.5 px-5 rounded-clay-btn clay-btn-lime text-slate-900 font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 active:scale-95 transition shadow-md border border-lime-400/60"
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Manual Food & Quantity Entry</span>
+            <div className="w-5 h-5 rounded-full bg-slate-900 text-lime-400 flex items-center justify-center font-black shadow-xs">
+              <Plus className="w-3.5 h-3.5 stroke-[4]" />
+            </div>
+            <span>Manual Food & Quantity Entry</span>
           </button>
         </div>
       </div>
@@ -259,20 +261,29 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
                   </button>
                   <button
                     onClick={() => handleOpenAdd(sec.type)}
-                    className="py-2 px-3 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs flex items-center gap-1.5 transition active:scale-95"
+                    className="py-2 px-3.5 rounded-clay-btn bg-slate-900 text-white hover:bg-slate-800 dark:bg-lime-400 dark:text-slate-900 font-heading font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
                     title={`Add food with quantity to ${sec.title}`}
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>+ Add Food & Qty</span>
+                    <div className="w-4 h-4 rounded-full bg-lime-400 text-slate-900 dark:bg-slate-900 dark:text-lime-400 flex items-center justify-center font-black">
+                      <Plus className="w-3 h-3 stroke-[4]" />
+                    </div>
+                    <span>Add Food</span>
                   </button>
                 </div>
               </div>
 
               {/* Section Meals List */}
               {sectionMeals.length === 0 ? (
-                <div className="py-4 text-center text-xs font-sans text-clay-text/50 dark:text-slate-400 clay-sunken rounded-2xl">
-                  No {sec.title.toLowerCase()} logged yet today.
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAdd(sec.type)}
+                  className="w-full py-4 px-4 text-center text-xs font-sans text-clay-text/80 dark:text-slate-300 clay-sunken rounded-2xl hover:border-lime-500/50 border border-dashed border-slate-300 dark:border-slate-700/60 transition flex items-center justify-center gap-2.5 group cursor-pointer"
+                >
+                  <div className="w-5 h-5 rounded-full bg-slate-900 text-lime-400 dark:bg-lime-400 dark:text-slate-900 flex items-center justify-center font-black group-hover:scale-110 transition shadow-sm">
+                    <Plus className="w-3.5 h-3.5 stroke-[4]" />
+                  </div>
+                  <span className="font-heading font-black">No {sec.title.toLowerCase()} logged yet — tap here to add food</span>
+                </button>
               ) : (
                 <div className="space-y-2.5">
                   {sectionMeals.map((meal) => (

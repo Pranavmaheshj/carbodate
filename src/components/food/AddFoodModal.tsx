@@ -224,31 +224,70 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     setInputFat(0);
   };
 
-  // Quick 1-tap direct log without building a multi-item list
-  const handleLogSingleFoodDirectly = () => {
-    if (!inputFoodName.trim()) return;
+  // Universal one-click save: logs any typed item AND/OR composed ingredients directly
+  const handleSaveMealNow = () => {
+    const itemsToSave: MealIngredient[] = [...ingredients];
+
+    // If user currently has food typed in the input box, include it automatically!
+    if (inputFoodName.trim()) {
+      itemsToSave.push({
+        id: `ing_${Date.now()}_input`,
+        name: inputFoodName.trim(),
+        quantity: inputQuantity,
+        unit: inputUnit,
+        calories: Math.max(0, inputCalories),
+        protein: Math.max(0, inputProtein),
+        carbs: Math.max(0, inputCarbs),
+        fiber: Math.max(0, inputFiber),
+        fat: Math.max(0, inputFat),
+      });
+    }
+
+    if (itemsToSave.length === 0) return;
+
+    const totalCals = itemsToSave.reduce((sum, item) => sum + item.calories, 0);
+    const totalProt = Math.round(itemsToSave.reduce((sum, item) => sum + item.protein, 0) * 100) / 100;
+    const totalCrbs = Math.round(itemsToSave.reduce((sum, item) => sum + item.carbs, 0) * 10) / 10;
+    const totalFbr = Math.round(itemsToSave.reduce((sum, item) => sum + item.fiber, 0) * 10) / 10;
+    const totalFt = Math.round(itemsToSave.reduce((sum, item) => sum + item.fat, 0) * 10) / 10;
+
+    const finalTitle =
+      mealName && mealName.trim() !== ''
+        ? mealName.trim()
+        : itemsToSave.length === 1
+        ? itemsToSave[0].name
+        : `${itemsToSave[0].name} with ${itemsToSave.slice(1).map((i) => i.name).join(', ')}`;
+
+    const portionSummary = itemsToSave
+      .map((i) => `${i.quantity}${i.unit} ${i.name}`)
+      .join(' + ');
 
     const meal: MealItem = {
       id: `meal_${Date.now()}`,
       userId,
       date: new Date().toISOString().split('T')[0],
       mealType,
-      name: inputFoodName.trim(),
-      portion: `${inputQuantity}${inputUnit}`,
-      calories: Math.max(0, inputCalories),
-      protein: Math.max(0, inputProtein),
-      carbs: Math.max(0, inputCarbs),
-      fiber: Math.max(0, inputFiber),
-      fat: Math.max(0, inputFat),
+      name: finalTitle,
+      portion: portionSummary,
+      calories: totalCals,
+      protein: totalProt,
+      carbs: totalCrbs,
+      fiber: totalFbr,
+      fat: totalFt,
       isFavorite: false,
-      detectedIngredients: [
-        `${inputFoodName.trim()} (${inputQuantity}${inputUnit}): ${inputCalories} kcal, ${inputProtein}g P, ${inputCarbs}g C, ${inputFiber}g Fiber, ${inputFat}g F`,
-      ],
+      detectedIngredients: itemsToSave.map(
+        (i) => `${i.name} (${i.quantity}${i.unit}): ${i.calories} kcal, ${i.protein}g P, ${i.carbs}g C, ${i.fiber}g Fiber, ${i.fat}g F`
+      ),
       createdAt: new Date().toISOString(),
     };
 
     onSaveMeal(meal);
     onClose();
+  };
+
+  // Quick 1-tap direct log without building a multi-item list
+  const handleLogSingleFoodDirectly = () => {
+    handleSaveMealNow();
   };
 
   // Remove an ingredient from builder
@@ -546,13 +585,16 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                           key={s.name}
                           type="button"
                           onClick={() => handleSelectSuggestedFood(s)}
-                          className={`text-[10px] px-2 py-0.5 rounded-lg font-heading font-bold transition active:scale-95 ${
+                          className={`text-[10px] px-2.5 py-1 rounded-xl font-heading font-black transition active:scale-95 flex items-center gap-1.5 ${
                             autoMatchedTemplate?.name === s.name
-                              ? 'clay-btn-lime text-clay-text'
+                              ? 'bg-slate-900 text-lime-400 dark:bg-lime-400 dark:text-slate-950 shadow-sm'
                               : 'clay-btn text-clay-text dark:text-slate-200'
                           }`}
                         >
-                          + {s.name} ({s.baseWeightGrams}g)
+                          <div className="w-3.5 h-3.5 rounded-full bg-slate-900 text-lime-400 dark:bg-lime-400 dark:text-slate-950 flex items-center justify-center font-black">
+                            <Plus className="w-2.5 h-2.5 stroke-[4]" />
+                          </div>
+                          <span>{s.name} ({s.baseWeightGrams}g)</span>
                         </button>
                       ))}
                     </div>
@@ -662,26 +704,35 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Dual Action Buttons: Add to Meal vs Log Directly */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {/* Primary & Secondary Action Buttons */}
+                  <div className="space-y-2 pt-1">
+                    {/* Primary Big Save Button */}
+                    <button
+                      type="button"
+                      onClick={handleSaveMealNow}
+                      disabled={!inputFoodName.trim() && ingredients.length === 0}
+                      className="w-full py-3.5 px-4 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-lime-400 dark:text-slate-950 font-heading font-black text-sm flex items-center justify-center gap-2.5 active:scale-98 transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-lime-400 text-slate-950 dark:bg-slate-950 dark:text-lime-400 flex items-center justify-center font-black shadow-sm">
+                        <Check className="w-3.5 h-3.5 stroke-[3.5]" />
+                      </div>
+                      <span>
+                        Save & Log to {mealType.toUpperCase()} (
+                        {(inputFoodName.trim() ? inputCalories : 0) + totalCalories} kcal)
+                      </span>
+                    </button>
+
+                    {/* Secondary: Add another item to meal builder */}
                     <button
                       type="button"
                       onClick={handleAddIngredient}
                       disabled={!inputFoodName.trim()}
-                      className="py-3 px-4 rounded-2xl clay-btn-sky text-clay-text font-heading font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition disabled:opacity-50 shadow-sm"
+                      className="w-full py-2.5 px-4 rounded-xl clay-btn text-clay-text dark:text-white font-heading font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-400"
                     >
-                      <Plus className="w-4 h-4 stroke-[3]" />
-                      <span>Add to Meal Builder ({inputCalories} kcal)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleLogSingleFoodDirectly}
-                      disabled={!inputFoodName.trim()}
-                      className="py-3 px-4 rounded-2xl clay-btn-lime text-clay-text font-heading font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition disabled:opacity-50 shadow-sm"
-                    >
-                      <Check className="w-4 h-4 stroke-[3]" />
-                      <span>Log Directly to {mealType}</span>
+                      <div className="w-5 h-5 rounded-full bg-slate-900 text-lime-400 dark:bg-lime-400 dark:text-slate-900 flex items-center justify-center font-black">
+                        <Plus className="w-3.5 h-3.5 stroke-[4]" />
+                      </div>
+                      <span>+ Add Another Food to this {mealType} Bowl</span>
                     </button>
                   </div>
                 </div>
@@ -901,10 +952,12 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                     {/* Save Entire Composed Meal Button */}
                     <button
                       type="button"
-                      onClick={handleSaveComposedMeal}
-                      className="w-full py-4 rounded-clay-btn clay-btn-lime font-heading font-black text-clay-text flex items-center justify-center gap-2 active:scale-95 transition text-sm shadow-md"
+                      onClick={handleSaveMealNow}
+                      className="w-full py-4 rounded-clay-btn bg-slate-900 text-white hover:bg-slate-800 dark:bg-lime-400 dark:text-slate-950 font-heading font-black flex items-center justify-center gap-2.5 active:scale-98 transition text-sm shadow-xl cursor-pointer"
                     >
-                      <Check className="w-5 h-5 stroke-[3]" />
+                      <div className="w-6 h-6 rounded-full bg-lime-400 text-slate-950 dark:bg-slate-950 dark:text-lime-400 flex items-center justify-center font-black shadow-sm">
+                        <Check className="w-3.5 h-3.5 stroke-[3.5]" />
+                      </div>
                       <span>Log Entire Meal ({totalCalories} kcal to {mealType})</span>
                     </button>
                   </div>
@@ -1034,18 +1087,22 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                         onClick={() =>
                           handleAddTemplateToBuilder(selectedTemplate, selectedQuantityGrams)
                         }
-                        className="flex-1 py-3 rounded-xl clay-btn-sky font-heading font-black text-xs text-clay-text flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                        className="flex-1 py-3 rounded-xl clay-btn font-heading font-black text-xs text-clay-text dark:text-white flex items-center justify-center gap-2 active:scale-95 shadow-sm"
                       >
-                        <Plus className="w-4 h-4 stroke-[3]" />
-                        <span>Add to My Meal Builder</span>
+                        <div className="w-5 h-5 rounded-full bg-slate-900 text-lime-400 dark:bg-lime-400 dark:text-slate-900 flex items-center justify-center font-black">
+                          <Plus className="w-3.5 h-3.5 stroke-[4]" />
+                        </div>
+                        <span>Add to Meal Builder</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={handleSaveSelectedFromSearch}
-                        className="flex-1 py-3 rounded-xl clay-btn font-heading font-black text-xs text-slate-800 dark:text-slate-100 flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                        className="flex-1 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-lime-400 dark:text-slate-950 font-heading font-black text-xs flex items-center justify-center gap-2 active:scale-95 shadow-sm cursor-pointer"
                       >
-                        <Check className="w-4 h-4 stroke-[3]" />
+                        <div className="w-5 h-5 rounded-full bg-lime-400 text-slate-950 dark:bg-slate-950 dark:text-lime-400 flex items-center justify-center font-black">
+                          <Check className="w-3.5 h-3.5 stroke-[3.5]" />
+                        </div>
                         <span>Log Directly to {mealType}</span>
                       </button>
                     </div>
@@ -1075,8 +1132,8 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                         <span className="font-mono font-black text-clay-coral-dark dark:text-clay-coral text-sm">
                           {item.calories} kcal
                         </span>
-                        <div className="clay-pebble w-8 h-8 rounded-xl flex items-center justify-center text-clay-text">
-                          <Plus className="w-4 h-4 stroke-[3]" />
+                        <div className="w-8 h-8 rounded-xl bg-slate-900 text-lime-400 dark:bg-lime-400 dark:text-slate-950 flex items-center justify-center shadow-sm">
+                          <Plus className="w-4 h-4 stroke-[4]" />
                         </div>
                       </div>
                     </div>
