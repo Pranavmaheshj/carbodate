@@ -337,8 +337,31 @@ Return JSON only:
     };
   }
 
-  // If user notes or picture mentions idli or dosa or south indian
-  if (lowerHint.includes('idli') || lowerHint.includes('dosa') || lowerHint.includes('sambar') || lowerHint.includes('chutney')) {
+  // If user notes or picture mentions dosa specifically
+  if (lowerHint.includes('dosa')) {
+    return {
+      isFood: true,
+      title: 'Crispy Masala Dosa with Sambar & Chutney',
+      items: [
+        { name: 'masala dosa', portion: '1 large dosa', grams: 150, calories: 250, protein: 5.0, carbs: 35.0, fat: 10.0, confidence: 0.96, alternatives: ['plain dosa', 'mysore masala dosa'] },
+        { name: 'potato masala filling', portion: '1/2 cup', grams: 100, calories: 130, protein: 2.0, carbs: 18.0, fat: 6.0, confidence: 0.92, alternatives: ['aloo masala'] },
+        { name: 'sambar', portion: '1 small bowl', grams: 150, calories: 85, protein: 4.0, carbs: 12.0, fat: 2.0, confidence: 0.95, alternatives: ['vegetable lentil soup'] },
+        { name: 'coconut chutney', portion: '2 tbsp', grams: 30, calories: 75, protein: 0.8, carbs: 2.5, fat: 7.0, confidence: 0.90, alternatives: ['coconut dip'] },
+      ],
+      totalCalories: 540,
+      totalProtein: 11.8,
+      totalCarbs: 67.5,
+      totalFiber: 7.2,
+      totalFat: 25.0,
+      notes: `Specific food items identified under ${cuisineContext} cuisine.`,
+      source: 'local_heuristic',
+      modelUsed: 'heuristic-engine',
+      cuisineContext,
+    };
+  }
+
+  // If user notes or picture mentions idli or sambar or south indian
+  if (lowerHint.includes('idli') || lowerHint.includes('sambar') || lowerHint.includes('chutney')) {
     return {
       isFood: true,
       title: 'Idli with Sambar & Coconut Chutney',
@@ -387,17 +410,30 @@ Return JSON only:
   }
 
   // Default meal heuristic if offline and no specific hint
-  const sampleMeals = [
-    {
-      title: 'Rolled Oats, Banana & Peanut Butter',
-      notes: `Specific food items identified under ${cuisineContext} cuisine.`,
-      items: [
-        { name: 'rolled oats', portion: '50g', grams: 50, calories: 190, protein: 6.6, carbs: 34.0, fiber: 5.1, fat: 3.5, confidence: 0.95, alternatives: ['quick oats'] },
-        { name: 'banana', portion: '1 medium', grams: 118, calories: 105, protein: 1.3, carbs: 27.0, fiber: 3.1, fat: 0.3, confidence: 0.95, alternatives: ['ripe banana'] },
-        { name: 'peanut butter', portion: '20g', grams: 20, calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, confidence: 0.95, alternatives: ['natural peanut butter'] },
-      ],
-    },
-  ];
+  const sampleMeals = cuisineContext.toLowerCase().includes('indian')
+    ? [
+        {
+          title: 'Crispy Masala Dosa with Sambar & Chutney',
+          notes: `Specific food items identified under ${cuisineContext} cuisine.`,
+          items: [
+            { name: 'masala dosa', portion: '1 large dosa', grams: 150, calories: 250, protein: 5.0, carbs: 35.0, fat: 10.0, fiber: 2.5, confidence: 0.96, alternatives: ['plain dosa', 'mysore masala dosa'] },
+            { name: 'potato masala filling', portion: '1/2 cup', grams: 100, calories: 130, protein: 2.0, carbs: 18.0, fat: 6.0, fiber: 2.1, confidence: 0.92, alternatives: ['aloo masala'] },
+            { name: 'sambar', portion: '1 small bowl', grams: 150, calories: 85, protein: 4.0, carbs: 12.0, fat: 2.0, fiber: 2.6, confidence: 0.95, alternatives: ['vegetable lentil soup'] },
+            { name: 'coconut chutney', portion: '2 tbsp', grams: 30, calories: 75, protein: 0.8, carbs: 2.5, fat: 7.0, fiber: 1.0, confidence: 0.90, alternatives: ['coconut dip'] },
+          ],
+        },
+      ]
+    : [
+        {
+          title: 'Rolled Oats, Banana & Peanut Butter',
+          notes: `Specific food items identified under ${cuisineContext} cuisine.`,
+          items: [
+            { name: 'rolled oats', portion: '50g', grams: 50, calories: 190, protein: 6.6, carbs: 34.0, fiber: 5.1, fat: 3.5, confidence: 0.95, alternatives: ['quick oats'] },
+            { name: 'banana', portion: '1 medium', grams: 118, calories: 105, protein: 1.3, carbs: 27.0, fiber: 3.1, fat: 0.3, confidence: 0.95, alternatives: ['ripe banana'] },
+            { name: 'peanut butter', portion: '20g', grams: 20, calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, confidence: 0.95, alternatives: ['natural peanut butter'] },
+          ],
+        },
+      ];
 
   const picked = sampleMeals[0];
   const totalCalories = picked.items.reduce((s, i) => s + i.calories, 0);

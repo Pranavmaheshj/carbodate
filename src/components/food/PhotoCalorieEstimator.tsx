@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Utensils,
+  Key,
 } from 'lucide-react';
 import { analyzeFoodPhoto, compressImageForVision, PhotoAnalysisResult } from '../../services/aiVision';
 import { MealItem, MealType, DetectedFoodCandidate } from '../../types';
@@ -90,6 +91,14 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
   });
   const [editableItems, setEditableItems] = useState<DetectedFoodCandidate[]>([]);
   const [scanStepText, setScanStepText] = useState<string>('Analyzing image...');
+  const [isKeyConfigOpen, setIsKeyConfigOpen] = useState<boolean>(false);
+  const [customApiKey, setCustomApiKey] = useState<string>(() => {
+    return (
+      (typeof localStorage !== 'undefined'
+        ? localStorage.getItem('carbodate_gemini_api_key')
+        : null) || ''
+    );
+  });
 
   // Live in-app camera viewfinder states
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
@@ -233,7 +242,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
     }, 1200);
 
     try {
-      const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_gemini_api_key') : null;
+      const storedKey = customApiKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_gemini_api_key') : null);
       const activeHint = explicitHint !== undefined ? explicitHint : mealHint;
       const result = await analyzeFoodPhoto(imgUrlOrBase64, storedKey || undefined, activeHint, cuisineContext);
 
@@ -334,24 +343,105 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-3.5 mb-5 pr-8">
-              <div className="w-12 h-12 rounded-2xl clay-card-lime text-clay-text flex items-center justify-center shadow-sm flex-shrink-0">
-                <Camera className="w-6 h-6 stroke-[2.2]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xl sm:text-2xl font-black text-clay-text dark:text-white font-heading tracking-tight">
-                    AI Food Calorie Vision
-                  </h3>
-                  <span className="text-[10px] clay-chip bg-clay-lime text-clay-text font-black uppercase px-2 py-0.5">
-                    Live Recognition
+            <div className="flex items-center justify-between gap-3 mb-4 pr-10">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl clay-card-lime text-clay-text flex items-center justify-center shadow-sm flex-shrink-0">
+                  <Camera className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-xl sm:text-2xl font-black text-clay-text dark:text-white font-heading tracking-tight">
+                      AI Food Calorie Vision
+                    </h3>
+                    <span className="text-[10px] clay-chip bg-clay-lime text-clay-text font-black uppercase px-2 py-0.5">
+                      Live Recognition
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-clay-text/60 dark:text-slate-400">
+                    Instant visual calorie, portion & macronutrient tracking
                   </span>
                 </div>
-                <span className="text-xs font-bold text-clay-text/60 dark:text-slate-400">
-                  Instant visual calorie, portion & macronutrient tracking
-                </span>
               </div>
+
+              {/* Gemini Key Config Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsKeyConfigOpen(!isKeyConfigOpen)}
+                className={`p-2.5 rounded-xl clay-btn flex items-center gap-1.5 text-xs font-heading font-black transition active:scale-90 cursor-pointer ${
+                  customApiKey ? 'text-lime-600 dark:text-lime-400 border border-lime-400/40' : 'text-slate-500'
+                }`}
+                title="Configure Gemini Vision API Key"
+              >
+                <Key className="w-4 h-4" />
+                <span className="hidden sm:inline">{customApiKey ? 'Custom Key' : 'Gemini Key'}</span>
+              </button>
             </div>
+
+            {/* Collapsible Gemini Key Configuration */}
+            {isKeyConfigOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-4 p-3.5 rounded-2xl clay-card-butter border border-amber-300 dark:border-amber-700 space-y-2 text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-heading font-black text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                    <Key className="w-4 h-4 text-amber-800" />
+                    <span>Google Gemini Vision API Key</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-amber-800/80">
+                    {customApiKey ? '● Custom Key' : '● Default Cloud Key Active'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    value={customApiKey}
+                    onChange={(e) => {
+                      const v = e.target.value.trim();
+                      setCustomApiKey(v);
+                      try {
+                        if (v) {
+                          localStorage.setItem('carbodate_gemini_api_key', v);
+                        } else {
+                          localStorage.removeItem('carbodate_gemini_api_key');
+                        }
+                      } catch {}
+                    }}
+                    placeholder="Paste AI Studio Key: AIzaSy... (or leave blank for cloud default)"
+                    className="clay-input flex-1 px-3 py-2 text-xs font-mono rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                  />
+                  {customApiKey && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomApiKey('');
+                        try {
+                          localStorage.removeItem('carbodate_gemini_api_key');
+                        } catch {}
+                      }}
+                      className="px-2.5 py-2 rounded-xl clay-btn text-[10px] font-heading font-black text-rose-500 cursor-pointer"
+                      title="Clear custom key and restore default cloud key"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="text-[10px] text-amber-900/80 dark:text-amber-300 leading-snug">
+                  Get a free Gemini API key anytime at{' '}
+                  <a
+                    href="https://aistudio.google.com/apikey"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline font-bold text-amber-950 dark:text-amber-100"
+                  >
+                    aistudio.google.com/apikey
+                  </a>
+                  .
+                </div>
+              </motion.div>
+            )}
 
             {/* Scrollable Container */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-5">
