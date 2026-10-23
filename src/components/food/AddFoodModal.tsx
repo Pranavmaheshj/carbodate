@@ -548,13 +548,13 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-2.5 sm:p-5 bg-slate-900/70 backdrop-blur-md overflow-y-auto pb-safe">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="w-full max-w-2xl clay-card rounded-clay-card p-5 sm:p-7 shadow-2xl relative text-left my-auto max-h-[92vh] flex flex-col overflow-hidden"
+            className="w-full max-w-2xl clay-card rounded-clay-card p-4 sm:p-7 shadow-2xl relative text-left my-auto h-[90dvh] max-h-[90dvh] sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden"
           >
             {/* Close Button */}
             <button

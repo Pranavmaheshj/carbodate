@@ -343,7 +343,7 @@ export function App() {
       />
 
       {/* Main App Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+      <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Top Header */}
         <Header
           currentTab={currentTab}
@@ -565,15 +565,17 @@ export function App() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <BottomNav
-        currentTab={currentTab}
-        onTabChange={(tab) => {
-          setIsGymLoggerOpen(false);
-          setCurrentTab(tab);
-        }}
-        onQuickStart={() => setIsQuickStartOpen(true)}
-      />
+      {/* Mobile Bottom Navigation - automatically hidden during active gym workouts or live GPS sessions */}
+      {!isGymLoggerOpen && !isLiveGpsOpen && (
+        <BottomNav
+          currentTab={currentTab}
+          onTabChange={(tab) => {
+            setIsGymLoggerOpen(false);
+            setCurrentTab(tab);
+          }}
+          onQuickStart={() => setIsQuickStartOpen(true)}
+        />
+      )}
 
       {/* OVERLAYS & MODALS */}
 

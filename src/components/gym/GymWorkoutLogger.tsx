@@ -489,14 +489,14 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
       {/* EXERCISE PICKER MODAL */}
       <AnimatePresence>
         {isPickerOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm pb-safe">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-xl clay-card rounded-clay-card p-6 shadow-2xl relative text-left max-h-[85vh] flex flex-col"
+              className="w-full max-w-xl clay-card rounded-clay-card p-4 sm:p-6 shadow-2xl relative text-left h-[86dvh] max-h-[86dvh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
                 <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2 font-display">
                   <div className="w-8 h-8 clay-pebble rounded-full flex items-center justify-center text-lime-600 dark:text-lime-400">
                     <Dumbbell className="w-4 h-4" />
@@ -513,7 +513,7 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               </div>
 
               {/* Search Bar */}
-              <div className="py-3">
+              <div className="py-2.5 sm:py-3 flex-shrink-0">
                 <div className="relative">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                   <input
@@ -527,7 +527,7 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               </div>
 
               {/* Muscle Group Filter Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-3 scrollbar-none mb-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 sm:pb-3 scrollbar-none mb-1 flex-shrink-0">
                 {['All', ...MUSCLE_GROUPS].map((mg) => (
                   <button
                     key={mg}
@@ -544,7 +544,7 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               </div>
 
               {/* Exercise Items List */}
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
                 {filteredLibrary.map((def) => (
                   <div
                     key={def.id}
@@ -578,13 +578,14 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
               </div>
 
               {/* Add Custom Exercise trigger */}
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-400">
+              <div className="pt-3 pb-1 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-2 flex-shrink-0 bg-inherit">
+                <span className="text-xs font-bold text-slate-400 truncate">
                   Can't find your exercise?
                 </span>
                 <button
+                  type="button"
                   onClick={() => setIsCustomModalOpen(true)}
-                  className="clay-btn-sky px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 active:scale-95 transition"
+                  className="clay-btn-sky px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition flex-shrink-0 shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                   <span>Create Custom</span>

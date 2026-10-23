@@ -25,7 +25,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   return (
     <nav
-      className="md:hidden fixed bottom-3 inset-x-3 z-40 pb-safe select-none pointer-events-none"
+      className="md:hidden fixed bottom-3 inset-x-3 z-30 pb-safe select-none pointer-events-none"
       aria-label="Mobile Bottom Navigation"
     >
       <div className="clay-card rounded-full px-3 py-2 h-[72px] flex items-center justify-around relative max-w-md mx-auto pointer-events-auto shadow-clay-card">

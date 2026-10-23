@@ -293,13 +293,13 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/70 backdrop-blur-md overflow-y-auto pb-safe">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="w-full max-w-xl clay-card rounded-clay-card p-5 sm:p-7 shadow-2xl relative text-left my-auto max-h-[92vh] flex flex-col overflow-hidden"
+            className="w-full max-w-xl clay-card rounded-clay-card p-4 sm:p-6 shadow-2xl relative text-left my-auto h-[90dvh] max-h-[90dvh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden"
           >
             {/* Close Button */}
             <button
@@ -412,7 +412,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
             )}
 
             {/* Scrollable Container */}
-            <div className="flex-1 overflow-y-auto pr-1 space-y-5">
+            <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-4">
               {/* STATE 1: LIVE VIEWFINDER STREAM */}
               {isCameraActive && (
                 <div className="space-y-3">
@@ -597,7 +597,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
               {imagePreview && (
                 <div className="space-y-4">
                   {/* Photo Preview with Laser Scanner Animation */}
-                  <div className="relative rounded-3xl overflow-hidden h-48 w-full clay-sunken bg-slate-900/10">
+                  <div className="relative rounded-3xl overflow-hidden h-32 sm:h-44 w-full clay-sunken bg-slate-900/10 flex-shrink-0">
                     <img
                       src={imagePreview}
                       alt="Meal Preview"
@@ -1018,14 +1018,14 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
 
             {/* Bottom Actions Bar for Valid Food */}
             {scanResult && !isScanning && scanResult.isFood && (
-              <div className="pt-4 mt-3 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center gap-3">
+              <div className="pt-3 pb-safe mt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2 sm:gap-3 flex-shrink-0 bg-inherit">
                 <button
                   type="button"
                   onClick={() => {
                     setImagePreview(null);
                     setScanResult(null);
                   }}
-                  className="clay-btn py-3.5 px-4 rounded-clay-btn text-clay-text dark:text-slate-200 font-heading font-black text-xs transition active:scale-95 flex-1"
+                  className="clay-btn py-3 px-3 sm:px-4 rounded-clay-btn text-clay-text dark:text-slate-200 font-heading font-black text-xs transition active:scale-95 flex-1"
                 >
                   Discard & Retake
                 </button>
@@ -1033,10 +1033,10 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmAndSave}
-                  className="clay-btn-lime py-3.5 px-6 rounded-clay-btn font-heading font-black text-sm flex items-center justify-center gap-2 transition shadow-md active:scale-95 flex-2 text-clay-text"
+                  className="clay-btn-lime py-3 px-3 sm:px-6 rounded-clay-btn font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md active:scale-95 flex-2 text-clay-text truncate"
                 >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>Log to Daily Diary ({totalCalories} kcal)</span>
+                  <Check className="w-4 h-4 stroke-[3] flex-shrink-0" />
+                  <span className="truncate">Log to Diary ({totalCalories} kcal)</span>
                 </button>
               </div>
             )}

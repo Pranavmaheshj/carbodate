@@ -42,12 +42,12 @@ export const AddCustomExerciseModal: React.FC<AddCustomExerciseModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto pb-safe">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-md clay-card rounded-clay-card p-6 shadow-2xl relative text-left my-auto max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-md clay-card rounded-clay-card p-4 sm:p-6 shadow-2xl relative text-left my-auto h-[88dvh] max-h-[88dvh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden"
           >
             <button
               onClick={onClose}
@@ -67,7 +67,7 @@ export const AddCustomExerciseModal: React.FC<AddCustomExerciseModalProps> = ({
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1 pb-2">
               <div>
                 <label className="block text-xs font-black text-slate-500 dark:text-slate-400 font-display uppercase tracking-wider mb-1.5">
                   Exercise Name

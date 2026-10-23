@@ -369,13 +369,13 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
       {/* PLAN GENERATOR MODAL */}
       <AnimatePresence>
         {isGeneratorOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md overflow-y-auto pb-safe">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="w-full max-w-lg clay-card rounded-clay-card p-6 sm:p-7 relative text-left"
+              className="w-full max-w-lg clay-card rounded-clay-card p-5 sm:p-7 relative text-left my-auto max-h-[90dvh] overflow-y-auto"
             >
               <button
                 onClick={() => setIsGeneratorOpen(false)}
