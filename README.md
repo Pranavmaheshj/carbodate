@@ -108,7 +108,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-*Note: The app is offline-tolerant and works seamlessly with local storage and built-in demo mode without configuring Supabase!*
+*Note: The app is offline-tolerant and works seamlessly with local storage even without configuring Supabase!*
 
 ---
 

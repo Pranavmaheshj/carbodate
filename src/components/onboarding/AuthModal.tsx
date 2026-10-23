@@ -229,12 +229,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleQuickDemoFill = () => {
-    setEmail('athlete@carbodate.io');
-    setPassword('fitness1234');
-    setName('Demo Athlete');
-  };
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -450,13 +444,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider">
                         Password
                       </label>
-                      <button
-                        type="button"
-                        onClick={handleQuickDemoFill}
-                        className="text-[11px] font-bold text-clay-sky-dark dark:text-clay-sky hover:underline"
-                      >
-                        Fill Demo Login
-                      </button>
                     </div>
                     <div className="relative flex items-center">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-4 pointer-events-none" />

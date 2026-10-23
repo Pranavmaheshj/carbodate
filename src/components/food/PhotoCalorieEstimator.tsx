@@ -31,33 +31,6 @@ interface PhotoCalorieEstimatorProps {
   onOpenManualAdd?: () => void;
 }
 
-const SAMPLE_PHOTO_PRESETS = [
-  {
-    name: 'Oatmeal, Banana & Peanut Butter',
-    desc: '50g oats + 1 banana + 20g peanut butter',
-    url: 'https://images.unsplash.com/photo-1517673400267-0251440c45dc?auto=format&fit=crop&w=600&q=80',
-    hint: '50g oats with a banana and 20g of peanut butter for breakfast',
-  },
-  {
-    name: 'Salmon & Quinoa Bowl',
-    desc: 'Omega-3 + Complex carbs',
-    url: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=600&q=80',
-    hint: '160g salmon fillet with quinoa and steamed greens',
-  },
-  {
-    name: 'Grilled Chicken & Rice',
-    desc: 'Lean protein + Jasmine rice',
-    url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
-    hint: '180g chicken breast with jasmine rice and avocado',
-  },
-  {
-    name: 'Avocado Toast & Eggs',
-    desc: 'Healthy fats + Whole grain',
-    url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=600&q=80',
-    hint: '2 poached eggs with sourdough toast and avocado',
-  },
-];
-
 // Helper to deduce meal type by current clock hour
 function getDefaultMealType(): MealType {
   const hour = new Date().getHours();
@@ -221,13 +194,6 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleSelectPreset = (url: string, hint?: string) => {
-    stopCameraStream();
-    setImagePreview(url);
-    if (hint) setMealHint(hint);
-    runScan(url, hint);
   };
 
   const runScan = async (imgUrlOrBase64: string, explicitHint?: string) => {
@@ -622,37 +588,6 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                       <span className="text-xs font-bold text-clay-text/60 dark:text-slate-400 mt-1 block">
                         Select from device gallery
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Quick Preset Samples for Instant Testing */}
-                  <div>
-                    <span className="text-xs font-heading font-black text-clay-text/70 dark:text-slate-400 block mb-2 uppercase tracking-wider">
-                      Or select a sample meal photo for instant verification:
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      {SAMPLE_PHOTO_PRESETS.map((p) => (
-                        <button
-                          key={p.name}
-                          type="button"
-                          onClick={() => handleSelectPreset(p.url, p.hint)}
-                          className="clay-card-flat rounded-2xl overflow-hidden hover:scale-[1.02] active:scale-95 transition group relative text-left p-2.5 flex items-center sm:flex-col gap-2.5"
-                        >
-                          <img
-                            src={p.url}
-                            alt={p.name}
-                            className="h-14 sm:h-20 w-16 sm:w-full rounded-xl object-cover group-hover:scale-105 transition-transform flex-shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <span className="text-xs font-heading font-black text-clay-text dark:text-white block truncate">
-                              {p.name}
-                            </span>
-                            <span className="text-[10px] font-bold text-clay-text/60 dark:text-slate-400 block truncate">
-                              {p.desc}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
                     </div>
                   </div>
                 </div>
