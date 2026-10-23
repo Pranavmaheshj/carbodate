@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Sun, Moon, Cloud, User } from 'lucide-react';
+import { ShieldAlert, Sun, Moon, Cloud, User, Sparkles } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { NavTab } from './BottomNav';
 
@@ -9,6 +9,7 @@ interface HeaderProps {
   onTabChange: (tab: NavTab) => void;
   onOpenDisclaimer: () => void;
   onOpenAuth?: () => void;
+  onOpenTour?: () => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
 }
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   onOpenDisclaimer,
   onOpenAuth,
+  onOpenTour,
   isDark,
   onToggleTheme,
 }) => {
@@ -72,6 +74,19 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right controls */}
       <div className="flex items-center gap-2.5">
+        {/* App Tour Guide Button */}
+        {onOpenTour && (
+          <button
+            onClick={onOpenTour}
+            className="px-2.5 py-2 rounded-full clay-pebble font-heading font-black text-xs text-clay-text dark:text-white flex items-center gap-1.5 transition-all active:scale-95"
+            title="Take App Tour / Guide"
+            aria-label="App Tour Guide"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-lime-500 fill-current" />
+            <span className="hidden sm:inline">Tour</span>
+          </button>
+        )}
+
         {/* Cloud Sync / Account Button */}
         <button
           onClick={onOpenAuth}

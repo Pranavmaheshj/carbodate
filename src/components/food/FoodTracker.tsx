@@ -62,12 +62,22 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
   const targetFat = Math.round((targetCals * 0.25) / 9);
   const targetFiber = 30; // 30g daily fiber recommendation
 
+  // Helper to reliably map any meal/drink into one of the four meal sections
+  const normalizeMealType = (raw?: string): MealType => {
+    if (!raw) return 'snack';
+    const clean = raw.toLowerCase().trim();
+    if (clean === 'breakfast') return 'breakfast';
+    if (clean === 'lunch') return 'lunch';
+    if (clean === 'dinner') return 'dinner';
+    return 'snack'; // snack, snacks, drinks, drink, beverage, etc. safely map to Snacks & Drinks
+  };
+
   // Group meals by mealType
   const mealSections: { type: MealType; title: string; desc: string }[] = [
     { type: 'breakfast', title: 'Breakfast', desc: 'Kickstart morning metabolism' },
     { type: 'lunch', title: 'Lunch', desc: 'Midday sustained fuel' },
     { type: 'dinner', title: 'Dinner', desc: 'Recovery & evening replenishment' },
-    { type: 'snack', title: 'Snacks', desc: 'Energy boosts & protein snacks' },
+    { type: 'snack', title: 'Snacks & Drinks', desc: 'Coffee, tea, drinks, energy boosts & snacks' },
   ];
 
   const handleOpenAdd = (type: MealType) => {
@@ -223,7 +233,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
         </div>
 
         {mealSections.map((sec) => {
-          const sectionMeals = meals.filter((m) => m.mealType === sec.type);
+          const sectionMeals = meals.filter((m) => normalizeMealType(m.mealType) === sec.type);
           const sectionCals = sectionMeals.reduce((s, m) => s + (m.calories || 0), 0);
 
           return (

@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Activity,
   RotateCcw,
+  Flag,
 } from 'lucide-react';
 import L from 'leaflet';
 import { geoTracker, TrackerState } from '../../services/geoTracker';
@@ -60,6 +61,8 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
   const [isSimulated, setIsSimulated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'map' | 'splits'>('map');
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [lapToast, setLapToast] = useState<string | null>(null);
+  const lapToastTimeoutRef = useRef<any>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -198,6 +201,17 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         return prev - 1;
       });
     }, 900);
+  };
+
+  const handleRecordLap = () => {
+    const lap = geoTracker.addManualLap();
+    const lapNumber = trackerState.splits.length;
+    const msg = `Lap ${lapNumber} recorded: ${lap.km} km • ${lap.paceMinPerKm} • ${formatDuration(lap.durationSeconds)}`;
+    setLapToast(msg);
+    if (lapToastTimeoutRef.current) clearTimeout(lapToastTimeoutRef.current);
+    lapToastTimeoutRef.current = setTimeout(() => {
+      setLapToast(null);
+    }, 3500);
   };
 
   // Duration and Calorie calculation (Incorporating Elevation & Steps)
@@ -341,7 +355,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         </div>
       </div>
 
-      {/* AUTO-PAUSE ALERT BANNER (Strava-like) */}
+      {/* AUTO-PAUSE & LAP TOAST ALERTS */}
       <AnimatePresence>
         {trackerState.isAutoPaused && (
           <motion.div
@@ -352,7 +366,19 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           >
             <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
             <Pause className="w-3.5 h-3.5 fill-current text-amber-800" />
-            <span>Auto-Paused (Stopped moving)</span>
+            <span>Auto-Paused (Will resume when you walk)</span>
+          </motion.div>
+        )}
+
+        {lapToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            className="absolute top-32 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-lime-400 font-heading font-black text-xs px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2 border border-lime-400/50"
+          >
+            <Flag className="w-3.5 h-3.5 fill-current text-lime-400" />
+            <span>{lapToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -364,33 +390,57 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           className={`w-full h-full ${activeTab === 'map' ? 'block' : 'hidden'}`}
         />
 
-        {/* Splits Overlay Tab */}
+        {/* Splits & Laps Overlay Tab */}
         {activeTab === 'splits' && (
           <div className="absolute inset-0 z-10 bg-slate-50/95 dark:bg-[#1E2030]/95 backdrop-blur-md p-6 overflow-y-auto pt-24">
-            <h3 className="text-xl font-heading font-black text-clay-text dark:text-white mb-4">
-              Kilometer Splits
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-heading font-black text-clay-text dark:text-white">
+                  Laps & Kilometer Splits
+                </h3>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-bold block">
+                  {trackerState.splits.length} split segments recorded
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRecordLap}
+                className="py-2 px-3 rounded-xl clay-btn-sky text-slate-900 font-heading font-black text-xs flex items-center gap-1.5 active:scale-95 shadow-sm"
+              >
+                <Flag className="w-3.5 h-3.5 fill-current text-sky-800" />
+                <span>+ Record Lap</span>
+              </button>
+            </div>
+
             {trackerState.splits.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs font-bold">
-                Complete your first kilometer to view split paces and elevation metrics.
+              <div className="text-center py-12 text-slate-400 text-xs font-bold space-y-2">
+                <div>No laps recorded yet.</div>
+                <div className="text-[11px] font-normal text-slate-500">
+                  Tap the "+ Lap" button anytime while moving to record individual lap splits, or complete a full kilometer!
+                </div>
               </div>
             ) : (
               <div className="space-y-2.5">
-                {trackerState.splits.map((s) => (
+                {trackerState.splits.map((s, idx) => (
                   <div
-                    key={s.km}
+                    key={idx}
                     className="p-3.5 rounded-2xl clay-card-flat flex items-center justify-between text-sm"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="w-9 h-9 rounded-xl clay-card-lime text-clay-text font-black flex items-center justify-center text-xs font-mono shadow-xs">
-                        {s.km}k
+                      <span className="w-10 h-10 rounded-xl clay-card-lime text-clay-text font-black flex items-center justify-center text-xs font-mono shadow-xs">
+                        #{idx + 1}
                       </span>
                       <div>
-                        <span className="font-mono font-black text-clay-text dark:text-white block">
+                        <div className="flex items-center gap-2">
+                          <span className="font-heading font-black text-clay-text dark:text-white text-xs">
+                            {s.km >= 1 ? `${s.km} km` : `${Math.round(s.km * 1000)} m`}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-slate-400">
+                            {formatDuration(s.durationSeconds)}
+                          </span>
+                        </div>
+                        <span className="font-mono text-xs font-black text-clay-coral-dark dark:text-clay-coral block mt-0.5">
                           {s.paceMinPerKm}
-                        </span>
-                        <span className="text-xs text-slate-400 font-bold font-mono">
-                          {formatDuration(s.durationSeconds)}
                         </span>
                       </div>
                     </div>
@@ -425,7 +475,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              Splits ({trackerState.splits.length})
+              Laps ({trackerState.splits.length})
             </button>
           </div>
         )}
@@ -594,14 +644,26 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
             {/* Tracking Controls */}
             <div className="flex items-center justify-center gap-3 pt-1">
               {trackerState.status === 'tracking' ? (
-                <button
-                  type="button"
-                  onClick={() => geoTracker.pause()}
-                  className="w-full py-4 px-6 rounded-clay-btn clay-btn-coral font-heading font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition text-white shadow-md"
-                >
-                  <Pause className="w-5 h-5 fill-current" />
-                  <span>PAUSE ACTIVITY</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleRecordLap}
+                    className="flex-1 py-4 px-4 rounded-clay-btn clay-btn font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition text-slate-800 dark:text-white shadow-md border border-slate-300 dark:border-slate-700"
+                    title="Record Lap split"
+                  >
+                    <Flag className="w-4 h-4 fill-current text-sky-600 dark:text-sky-400" />
+                    <span>+ LAP ({trackerState.splits.length + 1})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => geoTracker.pause()}
+                    className="flex-1 py-4 px-4 rounded-clay-btn clay-btn-coral font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition text-white shadow-md"
+                  >
+                    <Pause className="w-4 h-4 fill-current" />
+                    <span>PAUSE</span>
+                  </button>
+                </>
               ) : (
                 <>
                   <button

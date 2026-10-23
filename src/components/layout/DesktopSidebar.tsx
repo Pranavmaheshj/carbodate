@@ -12,6 +12,7 @@ import {
   Moon,
   Cloud,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 import { NavTab } from './BottomNav';
 import { UserProfile } from '../../types';
@@ -23,6 +24,7 @@ interface DesktopSidebarProps {
   profile: UserProfile | null;
   onOpenDisclaimer: () => void;
   onOpenAuth?: () => void;
+  onOpenTour?: () => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
 }
@@ -34,6 +36,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   profile,
   onOpenDisclaimer,
   onOpenAuth,
+  onOpenTour,
   isDark,
   onToggleTheme,
 }) => {
@@ -174,6 +177,17 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-clay-text" />
+            </button>
+          )}
+
+          {/* App Tour Guide Button */}
+          {onOpenTour && (
+            <button
+              onClick={onOpenTour}
+              className="w-full text-center text-xs font-heading font-black text-clay-text dark:text-slate-200 hover:text-lime-600 dark:hover:text-lime-400 flex items-center justify-center gap-2 py-2 px-3 rounded-xl clay-sunken transition active:scale-95"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-lime-500 fill-current" />
+              <span>Take App Tour</span>
             </button>
           )}
 

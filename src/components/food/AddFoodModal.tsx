@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -62,6 +62,13 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
   const [tab, setTab] = useState<'manual' | 'search' | 'favorites'>('manual');
   const [mealType, setMealType] = useState<MealType>(defaultMealType);
   const [mealName, setMealName] = useState<string>('');
+
+  // Synchronize mealType when modal opens or defaultMealType changes from section clicked
+  useEffect(() => {
+    if (isOpen) {
+      setMealType(defaultMealType || 'breakfast');
+    }
+  }, [isOpen, defaultMealType]);
 
   // Starts completely clean & empty as requested (no pre-set items!)
   const [ingredients, setIngredients] = useState<MealIngredient[]>([]);
@@ -478,18 +485,23 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
 
             {/* Meal Type Pill Selector - Fixed & Visible */}
             <div className="clay-sunken p-1.5 rounded-2xl flex gap-1 mb-4 flex-shrink-0">
-              {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((type) => (
+              {[
+                { type: 'breakfast' as MealType, label: 'Breakfast' },
+                { type: 'lunch' as MealType, label: 'Lunch' },
+                { type: 'dinner' as MealType, label: 'Dinner' },
+                { type: 'snack' as MealType, label: 'Snacks & Drinks' },
+              ].map(({ type, label }) => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => setMealType(type)}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-heading font-black capitalize transition active:scale-95 text-center ${
+                  className={`flex-1 py-1.5 px-1 rounded-xl text-xs font-heading font-black transition active:scale-95 text-center ${
                     mealType === type
                       ? 'clay-btn-lime text-clay-text scale-[1.02]'
                       : 'text-clay-text/60 dark:text-slate-400 hover:text-clay-text'
                   }`}
                 >
-                  {type}
+                  {label}
                 </button>
               ))}
             </div>
@@ -758,7 +770,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                         <Check className="w-3.5 h-3.5 stroke-[3.5]" />
                       </div>
                       <span>
-                        Save & Log to {mealType.toUpperCase()} (
+                        Save & Log to {mealType === 'snack' ? 'SNACKS & DRINKS' : mealType.toUpperCase()} (
                         {(inputFoodName.trim() ? inputCalories : 0) + totalCalories} kcal)
                       </span>
                     </button>

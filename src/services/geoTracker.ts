@@ -213,6 +213,34 @@ export class GeoTrackerService {
     }
   }
 
+  // Manual Lap recording feature requested by user
+  public addManualLap(): SplitRecord {
+    const currentDist = this.state.distanceMeters;
+    const currentTime = this.state.durationSeconds;
+    const currentElevation = this.state.elevationGainMeters;
+
+    const lapDist = Math.max(0, currentDist - this.currentSplitStartMeters);
+    const lapTimeSec = Math.max(1, currentTime - this.currentSplitStartTime);
+    const lapElevation = Math.max(0, Math.round(currentElevation - this.currentSplitStartElevation));
+    const lapPaceSec = lapDist > 0 ? (lapTimeSec / lapDist) * 1000 : 0;
+
+    const lapNumber = this.state.splits.length + 1;
+    const lapRecord: SplitRecord = {
+      km: Math.round((currentDist / 1000) * 100) / 100 || lapNumber,
+      durationSeconds: lapTimeSec,
+      paceMinPerKm: formatPace(lapPaceSec),
+      elevationGainMeters: lapElevation,
+    };
+
+    this.state.splits = [...this.state.splits, lapRecord];
+    this.currentSplitStartMeters = currentDist;
+    this.currentSplitStartTime = currentTime;
+    this.currentSplitStartElevation = currentElevation;
+
+    this.notify();
+    return lapRecord;
+  }
+
   // Finish activity & summarize final splits
   public async finish(): Promise<TrackerState> {
     this.stopNativeGeolocation();
@@ -271,9 +299,9 @@ export class GeoTrackerService {
     }
   }
 
-  // Physical motion step counting for real devices
+  // Physical motion step counting for real devices with GPS cross-validation to eliminate fake shaking steps
   private handleDeviceMotion = (e: DeviceMotionEvent) => {
-    if (this.state.status !== 'tracking' || this.state.isAutoPaused) return;
+    if (this.state.status !== 'tracking') return;
     if (this.state.activityType === 'cycling') return; // Cycling doesn't count walking steps
 
     const acc = e.accelerationIncludingGravity || e.acceleration;
@@ -282,13 +310,31 @@ export class GeoTrackerService {
     const magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
     const now = Date.now();
 
-    // Step peak detection: magnitude rises above 11.2 m/s² after being near 9.8 m/s² with debounce > 260ms
-    if (magnitude > 11.2 && this.lastAccelMagnitude <= 10.5 && now - this.lastAccelTime > 260) {
+    // Rhythmic step peak detection:
+    // Requires a debounce interval of at least 280ms (max ~214 steps/min)
+    // and distinct swing above 11.4 m/s² following a dip near gravity (<= 10.3 m/s²)
+    if (magnitude > 11.4 && this.lastAccelMagnitude <= 10.3 && now - this.lastAccelTime > 280) {
+      // GPS Corroboration: Prevent fake steps from phone shaking!
+      // If we have GPS route points and the phone is stationary (GPS speed < 0.8 km/h):
+      // calculate the maximum physically plausible steps for the distance traversed.
+      const minStrideMeters = 0.45;
+      const maxAllowedStepsFromGps = this.state.distanceMeters > 5
+        ? Math.floor(this.state.distanceMeters / minStrideMeters) + 12
+        : 15;
+
+      const isStationaryGps = this.state.routePoints.length >= 2 && this.state.currentSpeedKmh < 0.8;
+
+      if (isStationaryGps && this.state.steps >= maxAllowedStepsFromGps) {
+        // Discard fake shake step since phone is physically stationary over ground!
+        this.lastAccelMagnitude = magnitude;
+        return;
+      }
+
       this.state.steps += 1;
       this.lastAccelTime = now;
       this.recentStepTimestamps.push(now);
 
-      // Auto-resume if user was auto-paused and takes 2 consecutive steps
+      // Instant Auto-Resume: If auto-paused, walking footstep immediately wakes the tracker!
       if (this.state.isAutoPaused) {
         this.state.isAutoPaused = false;
         this.stationaryCounter = 0;
@@ -348,26 +394,29 @@ export class GeoTrackerService {
       : 0;
     this.state.currentSpeedKmh = Math.round(calcSpeedKmh * 10) / 10;
 
-    // Strava-Style Auto-Pause Logic:
-    // If movement drops below threshold (Walking < 1.2 km/h, Cycling < 3.0 km/h, Running < 1.8 km/h)
-    const pauseThresholdKmh = this.state.activityType === 'cycling' ? 3.0 : 1.4;
-    const resumeThresholdKmh = this.state.activityType === 'cycling' ? 3.8 : 2.0;
+    // Strava-Style Auto-Pause / Auto-Resume Logic:
+    const pauseThresholdKmh = this.state.activityType === 'cycling' ? 2.5 : 1.0;
+    const resumeThresholdKmh = this.state.activityType === 'cycling' ? 3.0 : 0.8;
 
-    if (calcSpeedKmh < pauseThresholdKmh) {
+    // Fast Auto-Resume: If user continues walking or moving (speed >= 0.8 km/h or distanceDelta >= 1.2m), immediately resume!
+    if (this.state.isAutoPaused) {
+      if (calcSpeedKmh >= resumeThresholdKmh || distanceDelta >= 1.2) {
+        this.state.isAutoPaused = false;
+        this.stationaryCounter = 0;
+        this.notify();
+      } else {
+        return; // Still stationary
+      }
+    } else if (calcSpeedKmh < pauseThresholdKmh) {
       this.stationaryCounter += 1;
-      if (this.stationaryCounter >= this.autoPauseThresholdSec && !this.state.isAutoPaused) {
+      if (this.stationaryCounter >= this.autoPauseThresholdSec) {
         this.state.isAutoPaused = true;
         this.notify();
         return;
       }
-    } else if (calcSpeedKmh >= resumeThresholdKmh) {
-      if (this.state.isAutoPaused) {
-        this.state.isAutoPaused = false;
-      }
+    } else {
       this.stationaryCounter = 0;
     }
-
-    if (this.state.isAutoPaused) return;
 
     // Elevation Gain Calculation
     if (altitude !== undefined && altitude !== null) {

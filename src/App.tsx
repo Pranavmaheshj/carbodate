@@ -22,6 +22,7 @@ import { BottomNav, NavTab } from './components/layout/BottomNav';
 import { DesktopSidebar } from './components/layout/DesktopSidebar';
 import { HealthDisclaimerModal } from './components/common/HealthDisclaimerModal';
 import { QuickStartModal } from './components/common/QuickStartModal';
+import { AppTourModal } from './components/common/AppTourModal';
 
 // Features Views & Modals
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -117,6 +118,15 @@ export function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [isPhotoScanOpen, setIsPhotoScanOpen] = useState<boolean>(false);
+  const [isTourOpen, setIsTourOpen] = useState<boolean>(() => {
+    try {
+      const hasCompletedTour = localStorage.getItem('carbodate_tour_completed_v1');
+      const hasProfile = !!StorageService.getProfile();
+      return hasProfile && !hasCompletedTour;
+    } catch {
+      return false;
+    }
+  });
 
   // App Data Collections
   const todayStr = new Date().toISOString().split('T')[0];
@@ -280,6 +290,13 @@ export function App() {
           onComplete={(newProfile) => {
             handleUpdateProfile(newProfile);
             setIsOnboardingOpen(false);
+            try {
+              if (!localStorage.getItem('carbodate_tour_completed_v1')) {
+                setIsTourOpen(true);
+              }
+            } catch {
+              setIsTourOpen(true);
+            }
           }}
           onCancel={profile ? () => setIsOnboardingOpen(false) : undefined}
         />
@@ -314,6 +331,7 @@ export function App() {
         profile={profile}
         onOpenDisclaimer={() => setIsDisclaimerOpen(true)}
         onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenTour={() => setIsTourOpen(true)}
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
       />
@@ -327,6 +345,7 @@ export function App() {
           onTabChange={setCurrentTab}
           onOpenDisclaimer={() => setIsDisclaimerOpen(true)}
           onOpenAuth={() => setIsAuthModalOpen(true)}
+          onOpenTour={() => setIsTourOpen(true)}
           isDark={isDark}
           onToggleTheme={() => setIsDark(!isDark)}
         />
@@ -619,6 +638,16 @@ export function App() {
         onClose={() => setIsPhotoScanOpen(false)}
         onSaveMeal={handleSaveMeal}
         userId={profile?.id || 'user_guest'}
+      />
+
+      {/* 9. Interactive Product Tour for New Users */}
+      <AppTourModal
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onNavigateTab={(tab) => {
+          setIsGymLoggerOpen(false);
+          setCurrentTab(tab);
+        }}
       />
     </div>
   );
