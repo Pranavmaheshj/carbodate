@@ -16,6 +16,7 @@ import {
   Layers,
   CheckCircle2,
   AlertTriangle,
+  Utensils,
 } from 'lucide-react';
 import { analyzeFoodPhoto, PhotoAnalysisResult } from '../../services/aiVision';
 import { MealItem, MealType, DetectedFoodCandidate } from '../../types';
@@ -26,6 +27,7 @@ interface PhotoCalorieEstimatorProps {
   onSaveMeal: (meal: MealItem) => void;
   userId: string;
   initialMealType?: MealType;
+  onOpenManualAdd?: () => void;
 }
 
 const SAMPLE_PHOTO_PRESETS = [
@@ -71,6 +73,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
   onSaveMeal,
   userId,
   initialMealType,
+  onOpenManualAdd,
 }) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
@@ -252,6 +255,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
         calories: 120,
         protein: 5,
         carbs: 15,
+        fiber: 2,
         fat: 4,
         confidence: 1.0,
       },
@@ -261,6 +265,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
   const totalCalories = editableItems.reduce((s, i) => s + (Number(i.calories) || 0), 0);
   const totalProtein = editableItems.reduce((s, i) => s + (Number(i.protein) || 0), 0);
   const totalCarbs = editableItems.reduce((s, i) => s + (Number(i.carbs) || 0), 0);
+  const totalFiber = editableItems.reduce((s, i) => s + (Number(i.fiber) || 0), 0);
   const totalFat = editableItems.reduce((s, i) => s + (Number(i.fat) || 0), 0);
 
   const handleConfirmAndSave = () => {
@@ -274,6 +279,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
       calories: totalCalories,
       protein: Math.round(totalProtein * 10) / 10,
       carbs: Math.round(totalCarbs * 10) / 10,
+      fiber: Math.round(totalFiber * 10) / 10,
       fat: Math.round(totalFat * 10) / 10,
       aiEstimated: true,
       detectedIngredients: editableItems.map((i) => `${i.name} - ${i.portion} (${i.calories} kcal)`),
@@ -604,11 +610,11 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
 
                       <div>
                         <h4 className="text-xl font-heading font-black text-rose-950 dark:text-rose-100 tracking-tight">
-                          Non-Food Photo Detected
+                          Please Upload a Picture of Your Meal
                         </h4>
-                        <p className="text-xs font-bold text-rose-900/80 dark:text-rose-200/90 mt-1.5 leading-relaxed max-w-md mx-auto">
+                        <p className="text-sm font-heading font-black text-rose-900 dark:text-rose-100 mt-2 leading-relaxed max-w-md mx-auto">
                           {scanResult.warningMessage ||
-                            'The uploaded image does not appear to contain edible food or beverages. Calorie calculation requires a photo of a meal, snack, or drink.'}
+                            'Please upload the picture of your meal to calculate the nutrition.'}
                         </p>
                       </div>
 
@@ -652,6 +658,20 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                           <span>Choose Another File</span>
                         </button>
                       </div>
+
+                      {onOpenManualAdd && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onOpenManualAdd();
+                          }}
+                          className="w-full py-3.5 px-4 rounded-2xl clay-btn-sky font-heading font-black text-xs text-clay-text flex items-center justify-center gap-2 active:scale-95 shadow-sm"
+                        >
+                          <Utensils className="w-4 h-4 stroke-[2.5]" />
+                          <span>Add Food & Exact Quantity Manually</span>
+                        </button>
+                      )}
                     </motion.div>
                   )}
 
@@ -715,8 +735,8 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                         </div>
 
                         {/* Macronutrient Pills */}
-                        <div className="flex items-center gap-2.5 sm:gap-3 text-center w-full sm:w-auto justify-around">
-                          <div className="clay-sunken py-2 px-3 rounded-2xl min-w-[64px]">
+                        <div className="flex items-center gap-2 sm:gap-2.5 text-center w-full sm:w-auto justify-around flex-wrap">
+                          <div className="clay-sunken py-2 px-3 rounded-2xl min-w-[58px]">
                             <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-heading font-bold">
                               Protein
                             </span>
@@ -725,7 +745,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                             </span>
                           </div>
 
-                          <div className="clay-sunken py-2 px-3 rounded-2xl min-w-[64px]">
+                          <div className="clay-sunken py-2 px-3 rounded-2xl min-w-[58px]">
                             <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-heading font-bold">
                               Carbs
                             </span>
@@ -734,7 +754,16 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                             </span>
                           </div>
 
-                          <div className="clay-sunken py-2 px-3 rounded-2xl min-w-[64px]">
+                          <div className="clay-sunken py-2 px-3 rounded-2xl min-w-[58px]">
+                            <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-heading font-bold">
+                              Fiber
+                            </span>
+                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                              {Math.round(totalFiber)}g
+                            </span>
+                          </div>
+
+                          <div className="clay-sunken py-2 px-3 rounded-2xl min-w-[58px]">
                             <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-heading font-bold">
                               Fat
                             </span>
@@ -813,9 +842,10 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                                 </div>
 
                                 {/* Macros chips */}
-                                <div className="flex items-center gap-1.5 clay-sunken px-2.5 py-1.5 rounded-xl text-[11px] font-mono font-bold">
+                                <div className="flex items-center gap-1.5 clay-sunken px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold">
                                   <span className="text-clay-coral-dark dark:text-clay-coral">{item.protein}P</span>
                                   <span className="text-clay-butter-dark dark:text-clay-butter">{item.carbs}C</span>
+                                  <span className="text-emerald-600 dark:text-emerald-400">{item.fiber || 0}Fiber</span>
                                   <span className="text-clay-sky-dark dark:text-clay-sky">{item.fat}F</span>
                                 </div>
 

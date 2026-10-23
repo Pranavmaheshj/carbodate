@@ -229,11 +229,11 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                         <span className="flex items-center gap-1 font-mono">
                           <Clock className="w-3 h-3" /> {formatDuration(act.durationSeconds)}
                         </span>
-                        {act.indoorDetails?.steps && (
+                        {(act.steps || act.indoorDetails?.steps) && (
                           <>
                             <span>•</span>
                             <span className="font-mono text-lime-600 dark:text-lime-400 flex items-center gap-0.5">
-                              <Footprints className="w-3 h-3" /> {act.indoorDetails.steps.toLocaleString()} steps
+                              <Footprints className="w-3 h-3" /> {(act.steps || act.indoorDetails?.steps)?.toLocaleString()} steps
                             </span>
                           </>
                         )}

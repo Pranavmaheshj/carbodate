@@ -73,6 +73,7 @@ export interface ActivityRecord {
   avgPaceMinPerKm: string;
   splits: SplitRecord[];
   routePoints: RoutePoint[];
+  steps?: number;
   indoorDetails?: {
     treadmillIncline?: number;
     speedKmh?: number;
@@ -167,6 +168,7 @@ export interface MealItem {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
   isFavorite?: boolean;
   imageUrl?: string;
   aiEstimated?: boolean;
@@ -208,6 +210,7 @@ export interface DetectedFoodCandidate {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
   confidence: number;
 }
 

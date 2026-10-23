@@ -9,6 +9,7 @@ export interface PhotoAnalysisResult {
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  totalFiber?: number;
   notes: string;
   source: 'gemini' | 'local_heuristic';
   modelUsed?: string;
@@ -107,7 +108,7 @@ If the image is NOT food-related (for example: it shows people, animals, vehicle
 Return strictly:
 {
   "isFood": false,
-  "warningMessage": "Specify clearly what was detected in the photo (e.g. office interior, laptop, person, car, dog) and explain that no edible food or beverage was identified. Please upload or snap a picture of your meal.",
+  "warningMessage": "No edible food or meal was detected in this picture. Please upload the picture of your meal to calculate the nutrition.",
   "title": "Non-Food Image",
   "items": [],
   "notes": ""
@@ -118,7 +119,7 @@ If the image IS food:
    - For breakfast bowls, oatmeal, porridge, smoothies, parfaits, and mixed dishes: Always decompose into each distinct ingredient (e.g. rolled oats, banana, peanut butter, milk/yogurt, berries, honey, nuts).
    - Never output a single vague item like "Oatmeal" if individual toppings or spreads like banana or peanut butter are present.
 2. Estimate accurate portion weights (in grams, ml, or pieces) based on typical plate proportions or user hints (e.g. 50g rolled oats, 1 medium banana ~118g, 20g peanut butter ~1 tbsp).
-3. Calculate accurate calories, protein (g), carbohydrates (g), and fat (g) for each ingredient using USDA nutritional standards.
+3. Calculate accurate calories, protein (g), carbohydrates (g), fiber (g), and fat (g) for each ingredient using USDA nutritional standards.
 4. Provide a confidence score (0.0 to 1.0) for visual identification.
 5. Provide a brief 1-2 sentence nutritional insight explaining the macro balance, nutrient density, and satiety profile.
 
@@ -134,6 +135,7 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
       "calories": 190,
       "protein": 6.5,
       "carbs": 34,
+      "fiber": 4.5,
       "fat": 3.5,
       "confidence": 0.98
     }
@@ -186,13 +188,14 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
                 isFood: false,
                 warningMessage:
                   parsed.warningMessage ||
-                  'No edible food or drink was detected in this image. Please take or upload a photo of your meal.',
+                  'Please upload the picture of your meal to calculate the nutrition.',
                 title: parsed.title || 'Non-Food Image Detected',
                 items: [],
                 totalCalories: 0,
                 totalProtein: 0,
                 totalCarbs: 0,
                 totalFat: 0,
+                totalFiber: 0,
                 notes: '',
                 source: 'gemini',
                 modelUsed: model,
@@ -206,6 +209,7 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
               protein: Math.max(0, Math.round((Number(item.protein) || 0) * 10) / 10),
               carbs: Math.max(0, Math.round((Number(item.carbs) || 0) * 10) / 10),
               fat: Math.max(0, Math.round((Number(item.fat) || 0) * 10) / 10),
+              fiber: Math.max(0, Math.round((Number(item.fiber) || 0) * 10) / 10),
               confidence: Math.min(1, Math.max(0.5, Number(item.confidence) || 0.9)),
             }));
 
@@ -214,13 +218,14 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
                 isFood: false,
                 warningMessage:
                   parsed.warningMessage ||
-                  'No recognizable food items could be identified in this image. Please upload a clear photo of your meal or ingredients.',
+                  'No recognizable food items could be identified in this image. Please upload the picture of your meal to calculate the nutrition.',
                 title: 'No Food Detected',
                 items: [],
                 totalCalories: 0,
                 totalProtein: 0,
                 totalCarbs: 0,
                 totalFat: 0,
+                totalFiber: 0,
                 notes: '',
                 source: 'gemini',
                 modelUsed: model,
@@ -231,6 +236,7 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
             const totalProtein = items.reduce((s, i) => s + i.protein, 0);
             const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
             const totalFat = items.reduce((s, i) => s + i.fat, 0);
+            const totalFiber = items.reduce((s, i) => s + (i.fiber || 0), 0);
 
             return {
               isFood: true,
@@ -240,6 +246,7 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
               totalProtein: Math.round(totalProtein * 10) / 10,
               totalCarbs: Math.round(totalCarbs * 10) / 10,
               totalFat: Math.round(totalFat * 10) / 10,
+              totalFiber: Math.round(totalFiber * 10) / 10,
               notes: parsed.notes || 'Nutritional scan calculated via Gemini Vision AI.',
               source: 'gemini',
               modelUsed: model,
@@ -258,6 +265,39 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
   await new Promise((resolve) => setTimeout(resolve, 800));
 
   const lowerHint = (userHint || '').toLowerCase();
+
+  // If user hint or photo name indicates a non-food item
+  if (
+    lowerHint.includes('car') ||
+    lowerHint.includes('cat') ||
+    lowerHint.includes('dog') ||
+    lowerHint.includes('shoe') ||
+    lowerHint.includes('laptop') ||
+    lowerHint.includes('phone') ||
+    lowerHint.includes('keyboard') ||
+    lowerHint.includes('screenshot') ||
+    lowerHint.includes('code') ||
+    lowerHint.includes('book') ||
+    lowerHint.includes('chair') ||
+    lowerHint.includes('non-food') ||
+    lowerHint.includes('irrelevant')
+  ) {
+    return {
+      isFood: false,
+      warningMessage: 'Please upload the picture of your meal to calculate the nutrition.',
+      title: 'Non-Food Image Detected',
+      items: [],
+      totalCalories: 0,
+      totalProtein: 0,
+      totalCarbs: 0,
+      totalFat: 0,
+      totalFiber: 0,
+      notes: '',
+      source: 'local_heuristic',
+      modelUsed: 'heuristic-engine',
+    };
+  }
+
   if (
     lowerHint.includes('oat') ||
     lowerHint.includes('banana') ||
@@ -266,15 +306,16 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
   ) {
     return {
       isFood: true,
-      title: 'Oatmeal Bowl with Banana & Peanut Butter',
+      title: 'High-Protein Oatmeal Bowl with Banana & Peanut Butter',
       items: [
-        { name: 'Rolled Oats (Dry)', portion: '50g', calories: 190, protein: 6.6, carbs: 34.0, fat: 3.5, confidence: 0.98 },
-        { name: 'Fresh Banana', portion: '1 medium (118g)', calories: 105, protein: 1.3, carbs: 27.0, fat: 0.3, confidence: 0.95 },
-        { name: 'Natural Peanut Butter', portion: '20g (1 generous tbsp)', calories: 120, protein: 5.0, carbs: 4.0, fat: 10.0, confidence: 0.96 },
+        { name: 'Rolled Oats (Dry)', portion: '50g', calories: 190, protein: 6.6, carbs: 34.0, fiber: 5.1, fat: 3.5, confidence: 0.98 },
+        { name: 'Fresh Banana', portion: '1 medium (118g)', calories: 105, protein: 1.3, carbs: 27.0, fiber: 3.1, fat: 0.3, confidence: 0.95 },
+        { name: 'Natural Peanut Butter', portion: '20g (1 generous tbsp)', calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, confidence: 0.96 },
       ],
       totalCalories: 415,
-      totalProtein: 12.9,
+      totalProtein: 13.4,
       totalCarbs: 65.0,
+      totalFiber: 9.8,
       totalFat: 13.8,
       notes: 'Balanced high-fiber complex carbohydrate breakfast with healthy fats and sustained energy release.',
       source: 'local_heuristic',
@@ -287,29 +328,29 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
       title: 'Grilled Salmon Bowl with Quinoa & Steamed Greens',
       notes: 'High omega-3 protein meal with complex slow-digesting carbohydrates and clean micronutrients.',
       items: [
-        { name: 'Seared Salmon Fillet', portion: '160g fillet', calories: 330, protein: 36, carbs: 0, fat: 19.5, confidence: 0.96 },
-        { name: 'Tri-Color Quinoa', portion: '120g cooked', calories: 145, protein: 5.2, carbs: 26, fat: 2.4, confidence: 0.91 },
-        { name: 'Steamed Broccoli & Asparagus', portion: '120g florets', calories: 42, protein: 3.5, carbs: 7.2, fat: 0.5, confidence: 0.94 },
-        { name: 'Extra Virgin Olive Oil drizzle', portion: '1 tsp (5ml)', calories: 40, protein: 0, carbs: 0, fat: 4.5, confidence: 0.85 },
+        { name: 'Seared Salmon Fillet', portion: '160g fillet', calories: 330, protein: 36, carbs: 0, fiber: 0, fat: 19.5, confidence: 0.96 },
+        { name: 'Tri-Color Quinoa', portion: '120g cooked', calories: 145, protein: 5.2, carbs: 26, fiber: 3.2, fat: 2.4, confidence: 0.91 },
+        { name: 'Steamed Broccoli & Asparagus', portion: '120g florets', calories: 42, protein: 3.5, carbs: 7.2, fiber: 3.8, fat: 0.5, confidence: 0.94 },
+        { name: 'Extra Virgin Olive Oil drizzle', portion: '1 tsp (5ml)', calories: 40, protein: 0, carbs: 0, fiber: 0, fat: 4.5, confidence: 0.85 },
       ],
     },
     {
       title: 'Seared Chicken Breast, Jasmine Rice & Avocado',
       notes: 'Lean hypertrophy meal with high leucine content and healthy monounsaturated fats.',
       items: [
-        { name: 'Herb Marinated Chicken Breast', portion: '180g grilled', calories: 290, protein: 54, carbs: 0, fat: 6.2, confidence: 0.97 },
-        { name: 'Steamed Jasmine Rice', portion: '150g bowl', calories: 195, protein: 4.0, carbs: 42, fat: 0.4, confidence: 0.95 },
-        { name: 'Hass Avocado slices', portion: '60g fresh', calories: 96, protein: 1.2, carbs: 5.1, fat: 8.8, confidence: 0.92 },
+        { name: 'Herb Marinated Chicken Breast', portion: '180g grilled', calories: 290, protein: 54, carbs: 0, fiber: 0, fat: 6.2, confidence: 0.97 },
+        { name: 'Steamed Jasmine Rice', portion: '150g bowl', calories: 195, protein: 4.0, carbs: 42, fiber: 0.6, fat: 0.4, confidence: 0.95 },
+        { name: 'Hass Avocado slices', portion: '60g fresh', calories: 96, protein: 1.2, carbs: 5.1, fiber: 4.0, fat: 8.8, confidence: 0.92 },
       ],
     },
     {
       title: 'Avocado Toast with 2 Poached Eggs & Cherry Tomatoes',
       notes: 'Classic balanced meal offering bioavailable choline, lutein, and sustained morning energy.',
       items: [
-        { name: 'Poached Eggs', portion: '2 large eggs', calories: 144, protein: 12.8, carbs: 0.8, fat: 10.0, confidence: 0.98 },
-        { name: 'Sourdough Artisan Toast', portion: '2 slices (80g)', calories: 185, protein: 6.5, carbs: 36, fat: 1.2, confidence: 0.93 },
-        { name: 'Crushed Hass Avocado', portion: '70g spread', calories: 112, protein: 1.4, carbs: 6.0, fat: 10.3, confidence: 0.94 },
-        { name: 'Cherry Tomatoes & Microgreens', portion: '50g fresh', calories: 15, protein: 0.8, carbs: 3.0, fat: 0.2, confidence: 0.89 },
+        { name: 'Poached Eggs', portion: '2 large eggs', calories: 144, protein: 12.8, carbs: 0.8, fiber: 0, fat: 10.0, confidence: 0.98 },
+        { name: 'Sourdough Artisan Toast', portion: '2 slices (80g)', calories: 185, protein: 6.5, carbs: 36, fiber: 2.5, fat: 1.2, confidence: 0.93 },
+        { name: 'Crushed Hass Avocado', portion: '70g spread', calories: 112, protein: 1.4, carbs: 6.0, fiber: 4.7, fat: 10.3, confidence: 0.94 },
+        { name: 'Cherry Tomatoes & Microgreens', portion: '50g fresh', calories: 15, protein: 0.8, carbs: 3.0, fiber: 1.0, fat: 0.2, confidence: 0.89 },
       ],
     },
   ];
@@ -319,6 +360,7 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
   const totalProtein = picked.items.reduce((s, i) => s + i.protein, 0);
   const totalCarbs = picked.items.reduce((s, i) => s + i.carbs, 0);
   const totalFat = picked.items.reduce((s, i) => s + i.fat, 0);
+  const totalFiber = picked.items.reduce((s, i) => s + (i.fiber || 0), 0);
 
   return {
     isFood: true,
@@ -328,6 +370,7 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
     totalProtein: Math.round(totalProtein * 10) / 10,
     totalCarbs: Math.round(totalCarbs * 10) / 10,
     totalFat: Math.round(totalFat * 10) / 10,
+    totalFiber: Math.round(totalFiber * 10) / 10,
     notes: picked.notes,
     source: 'local_heuristic',
     modelUsed: 'heuristic-engine',

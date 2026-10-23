@@ -50,15 +50,17 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
 
   // Today's total consumed calories and macros
   const totalEaten = meals.reduce((sum, m) => sum + (m.calories || 0), 0);
-  const totalProtein = Math.round(meals.reduce((sum, m) => sum + (m.protein || 0), 0));
-  const totalCarbs = Math.round(meals.reduce((sum, m) => sum + (m.carbs || 0), 0));
-  const totalFat = Math.round(meals.reduce((sum, m) => sum + (m.fat || 0), 0));
+  const totalProtein = Math.round(meals.reduce((sum, m) => sum + (m.protein || 0), 0) * 10) / 10;
+  const totalCarbs = Math.round(meals.reduce((sum, m) => sum + (m.carbs || 0), 0) * 10) / 10;
+  const totalFiber = Math.round(meals.reduce((sum, m) => sum + (m.fiber || 0), 0) * 10) / 10;
+  const totalFat = Math.round(meals.reduce((sum, m) => sum + (m.fat || 0), 0) * 10) / 10;
 
   // Recommended targets
   const targetCals = calculations.dailyCalorieTarget;
   const targetProtein = Math.round((targetCals * 0.35) / 4);
   const targetCarbs = Math.round((targetCals * 0.40) / 4);
   const targetFat = Math.round((targetCals * 0.25) / 9);
+  const targetFiber = 30; // 30g daily fiber recommendation
 
   // Group meals by mealType
   const mealSections: { type: MealType; title: string; desc: string }[] = [
@@ -156,6 +158,22 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
                   <div
                     className="h-full bg-clay-sky rounded-full transition-all duration-700"
                     style={{ width: `${Math.min(100, (totalFat / targetFat) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Fiber */}
+              <div>
+                <div className="flex justify-between text-xs font-heading font-bold mb-1.5">
+                  <span className="text-emerald-600 dark:text-emerald-400">Dietary Fiber</span>
+                  <span className="text-clay-text dark:text-white font-mono">
+                    {totalFiber}g <span className="text-clay-text/50 dark:text-slate-500">/ {targetFiber}g</span>
+                  </span>
+                </div>
+                <div className="h-3.5 w-full clay-sunken rounded-full overflow-hidden p-0.5">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(100, (totalFiber / targetFiber) * 100)}%` }}
                   />
                 </div>
               </div>
@@ -287,7 +305,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
                             )}
                           </div>
                           <span className="text-clay-text/60 dark:text-slate-400 text-[11px] font-sans block mt-0.5">
-                            {meal.portion} • {meal.protein}g P • {meal.carbs}g C • {meal.fat}g F
+                            {meal.portion} • {meal.protein}g P • {meal.carbs}g C • {meal.fiber ? `${meal.fiber}g Fiber • ` : ''}{meal.fat}g F
                           </span>
                         </div>
                       </div>
@@ -333,6 +351,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
         onSaveMeal={onSaveMeal}
         userId={profile.id}
         initialMealType={activeMealTypeForAdd}
+        onOpenManualAdd={() => setIsAddFoodModalOpen(true)}
       />
 
       {/* Search / Manual Add Food Modal */}
@@ -343,6 +362,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
         userId={profile.id}
         defaultMealType={activeMealTypeForAdd}
         favoriteMeals={favoriteMeals}
+        onOpenAiScan={() => setIsPhotoModalOpen(true)}
       />
     </div>
   );

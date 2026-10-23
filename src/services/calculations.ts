@@ -189,15 +189,34 @@ export function estimateActivityCalories(
   durationMinutes: number,
   weightKg: number,
   intensity: 'default' | 'moderate' | 'vigorous' = 'default',
-  inclinePercent: number = 0
+  inclinePercent: number = 0,
+  elevationGainMeters: number = 0,
+  steps: number = 0
 ): number {
+  if (durationMinutes <= 0 || weightKg <= 0) return 0;
   let met = MET_VALUES[type]?.[intensity] || 7.0;
   if (inclinePercent > 0) {
     // Add MET multiplier for incline treadmill (supporting up to 18% incline)
     met += inclinePercent * 0.42;
   }
   const hours = durationMinutes / 60;
-  return Math.round(met * weightKg * hours);
+  let calories = met * weightKg * hours;
+
+  // Exact gravitational work for elevation climb:
+  // W = m * g * h (Joules). With 24% human muscular efficiency:
+  // vertical Kcal = (weightKg * 9.80665 * elevationGainMeters) / (4184 * 0.24) ~ 0.00976 * weightKg * elevationGainMeters
+  if (elevationGainMeters > 0) {
+    const verticalCalories = weightKg * elevationGainMeters * 0.00976;
+    calories += verticalCalories;
+  }
+
+  // If steps are available and activity is walking/running, incorporate step work:
+  if (steps > 0 && (type === 'walking' || type === 'running' || type === 'jogging')) {
+    const stepKcal = steps * (weightKg / 70) * (type === 'walking' ? 0.038 : 0.052);
+    calories = Math.max(calories, (calories * 0.65) + (stepKcal * 0.35));
+  }
+
+  return Math.round(calories);
 }
 
 /**

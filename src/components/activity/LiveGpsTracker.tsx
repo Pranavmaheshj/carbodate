@@ -10,7 +10,14 @@ import {
   TrendingUp,
   Clock,
   Compass,
-  X
+  X,
+  Bike,
+  Footprints,
+  Mountain,
+  CheckCircle2,
+  AlertCircle,
+  Activity,
+  RotateCcw,
 } from 'lucide-react';
 import L from 'leaflet';
 import { geoTracker, TrackerState } from '../../services/geoTracker';
@@ -22,7 +29,7 @@ import {
 import {
   formatDuration,
   formatPace,
-  estimateActivityCalories
+  estimateActivityCalories,
 } from '../../services/calculations';
 
 interface LiveGpsTrackerProps {
@@ -32,24 +39,36 @@ interface LiveGpsTrackerProps {
   onCancel: () => void;
 }
 
+const OUTDOOR_ACTIVITIES: { id: ActivityType; label: string; icon: any; unit: string }[] = [
+  { id: 'running', label: 'Running', icon: Footprints, unit: 'Pace (min/km)' },
+  { id: 'jogging', label: 'Jogging', icon: Footprints, unit: 'Pace (min/km)' },
+  { id: 'walking', label: 'Walking', icon: Compass, unit: 'Steps' },
+  { id: 'cycling', label: 'Cycling', icon: Bike, unit: 'Speed (km/h)' },
+];
+
 export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
-  activityType,
+  activityType: initialActivityType,
   profile,
   onFinish,
   onCancel,
 }) => {
-  const [trackerState, setTrackerState] = useState<TrackerState>(geoTracker.getState());
+  const [selectedType, setSelectedType] = useState<ActivityType>(initialActivityType || 'running');
+  const [trackerState, setTrackerState] = useState<TrackerState>(() => {
+    geoTracker.reset(initialActivityType || 'running');
+    return geoTracker.getState();
+  });
   const [isSimulated, setIsSimulated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'map' | 'splits'>('map');
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
   const currentMarkerRef = useRef<L.CircleMarker | null>(null);
 
+  // Subscribe to geoTracker updates
   useEffect(() => {
-    geoTracker.start(isSimulated);
-
+    geoTracker.setUserHeight(profile.heightCm || 175);
     const unsubscribe = geoTracker.subscribe((state) => {
       setTrackerState(state);
     });
@@ -58,9 +77,9 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
       unsubscribe();
       geoTracker.finish();
     };
-  }, [isSimulated]);
+  }, [profile.heightCm]);
 
-  // Leaflet Map Init (Pastel CartoDB Voyager Map with Thick Lime Polyline)
+  // Leaflet Map Init (100% Free OpenStreetMap - No Google API Key Needed)
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -73,10 +92,10 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         attributionControl: false,
       }).setView([initialLat, initialLng], 16);
 
-      // CartoDB Voyager pastel tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // OpenStreetMap Tiles (100% Free & Open Access)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: 'abcd',
+        subdomains: ['a', 'b', 'c'],
       }).addTo(map);
 
       // White outline casing for 3D clay look
@@ -100,7 +119,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
       polylineRef.current = polyline;
       (map as any)._casing = casing;
 
-      // Current position marble dot
+      // Current position marker dot
       const marker = L.circleMarker([initialLat, initialLng], {
         radius: 9,
         fillColor: '#B8F25B',
@@ -111,6 +130,25 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
       currentMarkerRef.current = marker;
       mapInstanceRef.current = map;
+
+      // Center on user's real GPS position if available
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current.setView([latitude, longitude], 16);
+              if (currentMarkerRef.current) {
+                currentMarkerRef.current.setLatLng([latitude, longitude]);
+              }
+            }
+          },
+          (err) => {
+            console.warn('Initial GPS position fix:', err);
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      }
     }
 
     return () => {
@@ -141,31 +179,56 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
     }
   }, [trackerState.routePoints]);
 
+  // When activity type changes in idle mode
+  const handleSelectActivity = (type: ActivityType) => {
+    setSelectedType(type);
+    geoTracker.setActivityType(type);
+  };
+
+  // Start with 3-second animated countdown
+  const handleTriggerStart = () => {
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          geoTracker.start(selectedType, isSimulated, profile.heightCm);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 900);
+  };
+
+  // Duration and Calorie calculation (Incorporating Elevation & Steps)
   const durationMins = trackerState.durationSeconds / 60;
   const liveCalories = estimateActivityCalories(
-    activityType,
+    selectedType,
     durationMins,
     profile.currentWeightKg || 75,
-    'default'
+    'default',
+    0,
+    trackerState.elevationGainMeters,
+    trackerState.steps
   );
 
   const handleFinish = async () => {
     const finalState = await geoTracker.finish();
     const distanceKm = finalState.distanceMeters / 1000;
-    const avgSpeed = finalState.durationSeconds > 0
-      ? (distanceKm / (finalState.durationSeconds / 3600))
-      : 0;
+    const avgSpeed =
+      finalState.durationSeconds > 0
+        ? distanceKm / (finalState.durationSeconds / 3600)
+        : 0;
 
-    const avgPaceSec = distanceKm > 0
-      ? finalState.durationSeconds / distanceKm
-      : 0;
+    const avgPaceSec =
+      distanceKm > 0 ? finalState.durationSeconds / distanceKm : 0;
 
     const activity: ActivityRecord = {
       id: `act_${Date.now()}`,
       userId: profile.id,
-      type: activityType,
+      type: selectedType,
       environment: 'outdoor',
-      title: `Outdoor ${activityType.charAt(0).toUpperCase() + activityType.slice(1)}`,
+      title: `Outdoor ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`,
       startTime: new Date(Date.now() - finalState.durationSeconds * 1000).toISOString(),
       endTime: new Date().toISOString(),
       durationSeconds: finalState.durationSeconds,
@@ -176,7 +239,10 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
       avgPaceMinPerKm: formatPace(avgPaceSec),
       splits: finalState.splits,
       routePoints: finalState.routePoints,
-      notes: isSimulated ? 'Recorded via simulated GPS route.' : 'Recorded via live GPS tracker.',
+      steps: selectedType !== 'cycling' ? finalState.steps : undefined,
+      notes: isSimulated
+        ? `Recorded via simulated GPS route. ${finalState.elevationGainMeters}m elevation gain.`
+        : `Recorded via live GPS tracker. ${finalState.elevationGainMeters}m elevation gain.`,
     };
 
     onFinish(activity);
@@ -187,28 +253,67 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#EEF0FB] dark:bg-[#151722] flex flex-col text-slate-800 dark:text-slate-100 select-none h-[100dvh]">
+      {/* 3-2-1 Countdown Overlay */}
+      <AnimatePresence>
+        {countdown !== null && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.2 }}
+            className="absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center text-white"
+          >
+            <span className="text-xl font-heading font-black tracking-wider uppercase text-lime-400 mb-2">
+              Get Ready
+            </span>
+            <div className="text-8xl sm:text-9xl font-heading font-black font-mono text-[#B8F25B] drop-shadow-lg">
+              {countdown}
+            </div>
+            <span className="text-sm font-bold text-slate-300 mt-4 capitalize">
+              Starting Outdoor {selectedType}...
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Top Floating HUD bar */}
       <div className="absolute top-0 left-0 right-0 z-20 pt-safe px-4 py-3 clay-card rounded-b-3xl flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl clay-pebble flex items-center justify-center font-bold text-lime-600 dark:text-lime-400">
-            <Compass className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl clay-card-lime text-clay-text flex items-center justify-center font-bold shadow-xs">
+            {selectedType === 'cycling' ? (
+              <Bike className="w-5 h-5 stroke-[2.3]" />
+            ) : selectedType === 'walking' ? (
+              <Compass className="w-5 h-5 stroke-[2.3]" />
+            ) : (
+              <Footprints className="w-5 h-5 stroke-[2.3]" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-black text-slate-800 dark:text-slate-100 capitalize text-sm font-display">
-                Outdoor {activityType}
+              <span className="font-heading font-black text-clay-text dark:text-white capitalize text-sm">
+                Outdoor {selectedType}
               </span>
-              <span className="w-2.5 h-2.5 rounded-full bg-lime-500 animate-ping" />
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-bold">
-              {trackerState.wakeLockActive && (
-                <span className="flex items-center gap-1 text-teal-600 dark:text-teal-400 font-bold">
-                  <Lock className="w-3 h-3" /> Screen Awake
+
+              {/* Status Pill */}
+              {trackerState.status === 'tracking' && (
+                <span className="flex items-center gap-1 bg-lime-500/20 text-lime-700 dark:text-lime-300 text-[10px] font-mono font-black px-2 py-0.5 rounded-full">
+                  <span className="w-2 h-2 rounded-full bg-lime-500 animate-ping" />
+                  LIVE GPS
                 </span>
               )}
-              {isSimulated && (
-                <span className="clay-card-butter px-2 py-0.5 rounded-full font-black text-[10px]">
-                  Simulation
+              {trackerState.status === 'idle' && (
+                <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-heading font-bold px-2 py-0.5 rounded-full">
+                  READY
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
+              <span className="text-emerald-600 dark:text-emerald-400">
+                ✓ Free GPS Map • No API Key Needed
+              </span>
+              {trackerState.wakeLockActive && (
+                <span className="flex items-center gap-0.5 text-teal-600 dark:text-teal-400">
+                  <Lock className="w-2.5 h-2.5" /> Awake
                 </span>
               )}
             </div>
@@ -217,16 +322,18 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsSimulated(!isSimulated)}
-            className="text-[11px] font-black px-3 py-1.5 rounded-full clay-btn text-slate-700 dark:text-slate-200 transition active:scale-95"
-          >
-            {isSimulated ? 'Real GPS' : 'Simulate'}
-          </button>
+          {trackerState.status === 'idle' && (
+            <button
+              onClick={() => setIsSimulated(!isSimulated)}
+              className="text-[11px] font-heading font-bold px-3 py-1.5 rounded-full clay-btn text-slate-700 dark:text-slate-200 transition active:scale-95"
+            >
+              {isSimulated ? 'Real GPS' : 'Simulate'}
+            </button>
+          )}
 
           <button
             onClick={onCancel}
-            className="clay-pebble w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition"
+            className="clay-pebble w-9 h-9 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition active:scale-90"
             aria-label="Exit GPS tracker"
           >
             <X className="w-4 h-4" />
@@ -234,13 +341,21 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         </div>
       </div>
 
-      {/* Auto Pause Indicator Alert */}
-      {trackerState.isAutoPaused && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 clay-card-butter text-slate-900 font-black text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 font-display">
-          <Pause className="w-3.5 h-3.5 fill-current" />
-          <span>Auto-Paused (Stationary)</span>
-        </div>
-      )}
+      {/* AUTO-PAUSE ALERT BANNER (Strava-like) */}
+      <AnimatePresence>
+        {trackerState.isAutoPaused && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            className="absolute top-20 left-1/2 -translate-x-1/2 z-30 clay-card-butter text-amber-950 font-heading font-black text-xs px-5 py-2.5 rounded-full shadow-xl flex items-center gap-2 border border-amber-400/40"
+          >
+            <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+            <Pause className="w-3.5 h-3.5 fill-current text-amber-800" />
+            <span>Auto-Paused (Stopped moving)</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Map or Splits View */}
       <div className="flex-1 relative w-full h-full">
@@ -252,7 +367,9 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         {/* Splits Overlay Tab */}
         {activeTab === 'splits' && (
           <div className="absolute inset-0 z-10 bg-slate-50/95 dark:bg-[#1E2030]/95 backdrop-blur-md p-6 overflow-y-auto pt-24">
-            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 mb-4 font-display">Kilometer Splits</h3>
+            <h3 className="text-xl font-heading font-black text-clay-text dark:text-white mb-4">
+              Kilometer Splits
+            </h3>
             {trackerState.splits.length === 0 ? (
               <div className="text-center py-12 text-slate-400 text-xs font-bold">
                 Complete your first kilometer to view split paces and elevation metrics.
@@ -265,17 +382,19 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
                     className="p-3.5 rounded-2xl clay-card-flat flex items-center justify-between text-sm"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="w-9 h-9 rounded-xl clay-pebble text-lime-700 dark:text-lime-400 font-black flex items-center justify-center text-xs font-mono">
+                      <span className="w-9 h-9 rounded-xl clay-card-lime text-clay-text font-black flex items-center justify-center text-xs font-mono shadow-xs">
                         {s.km}k
                       </span>
                       <div>
-                        <span className="font-black text-slate-800 dark:text-slate-100 font-mono block">{s.paceMinPerKm}</span>
+                        <span className="font-mono font-black text-clay-text dark:text-white block">
+                          {s.paceMinPerKm}
+                        </span>
                         <span className="text-xs text-slate-400 font-bold font-mono">
                           {formatDuration(s.durationSeconds)}
                         </span>
                       </div>
                     </div>
-                    <span className="text-xs text-slate-400 font-bold font-mono">
+                    <span className="text-xs font-mono font-bold text-lime-600 dark:text-lime-400">
                       +{s.elevationGainMeters}m elev
                     </span>
                   </div>
@@ -286,116 +405,227 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         )}
 
         {/* View Switcher Floating Pill */}
-        <div className="absolute top-20 right-4 z-20 clay-sunken rounded-full p-1 flex gap-1 shadow-md">
-          <button
-            onClick={() => setActiveTab('map')}
-            className={`px-3 py-1 text-xs font-black rounded-full transition ${
-              activeTab === 'map'
-                ? 'clay-btn-lime'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            Map
-          </button>
-          <button
-            onClick={() => setActiveTab('splits')}
-            className={`px-3 py-1 text-xs font-black rounded-full transition ${
-              activeTab === 'splits'
-                ? 'clay-btn-lime'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            Splits ({trackerState.splits.length})
-          </button>
-        </div>
+        {trackerState.status !== 'idle' && (
+          <div className="absolute top-20 right-4 z-20 clay-sunken rounded-full p-1 flex gap-1 shadow-md">
+            <button
+              onClick={() => setActiveTab('map')}
+              className={`px-3 py-1 text-xs font-heading font-black rounded-full transition ${
+                activeTab === 'map'
+                  ? 'clay-btn-lime text-clay-text'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Map
+            </button>
+            <button
+              onClick={() => setActiveTab('splits')}
+              className={`px-3 py-1 text-xs font-heading font-black rounded-full transition ${
+                activeTab === 'splits'
+                  ? 'clay-btn-lime text-clay-text'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Splits ({trackerState.splits.length})
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Bottom Live Metrics Dashboard Card */}
-      <div className="clay-card rounded-t-[36px] p-5 pb-safe z-20 shadow-2xl">
-        {/* Big Numbers HUD */}
-        <div className="grid grid-cols-3 gap-2 text-center mb-4">
-          <div className="clay-sunken rounded-2xl p-2.5 sm:p-3">
-            <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-black font-display block truncate">
-              Distance
-            </span>
-            <div className="flex items-baseline justify-center gap-1 mt-0.5">
-              <span className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight font-mono">
-                {distKm}
+      {/* BOTTOM CONTROL & HUD DASHBOARD */}
+      <div className="clay-card rounded-t-[36px] p-5 pb-safe z-20 shadow-2xl space-y-4">
+        {/* PRE-START STATE: ACTIVITY PICKER CAROUSEL (Choose first like Strava) */}
+        {trackerState.status === 'idle' && (
+          <div className="space-y-4">
+            <div>
+              <span className="text-xs font-heading font-black text-clay-text/70 dark:text-slate-400 uppercase tracking-wider block mb-2 text-center">
+                Choose Activity Before Starting:
               </span>
-              <span className="text-[10px] sm:text-xs font-black text-lime-600 dark:text-lime-400 font-mono">km</span>
-            </div>
-          </div>
 
-          <div className="clay-sunken rounded-2xl p-2.5 sm:p-3">
-            <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-black font-display block truncate">
-              Time
-            </span>
-            <div className="flex items-baseline justify-center gap-0.5 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 font-mono tracking-tight">
-                {formatDuration(trackerState.durationSeconds)}
+              {/* Activity Selection Carousel */}
+              <div className="grid grid-cols-4 gap-2">
+                {OUTDOOR_ACTIVITIES.map((act) => {
+                  const Icon = act.icon;
+                  const isSelected = selectedType === act.id;
+                  return (
+                    <button
+                      key={act.id}
+                      type="button"
+                      onClick={() => handleSelectActivity(act.id)}
+                      className={`py-3 px-2 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition active:scale-95 ${
+                        isSelected
+                          ? 'clay-btn-lime text-clay-text scale-[1.03] shadow-md'
+                          : 'clay-btn text-clay-text/70 dark:text-slate-300'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 stroke-[2.4]" />
+                      <span className="text-xs font-heading font-black">{act.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Target Metric Preview Info */}
+            <div className="p-3 rounded-2xl clay-sunken flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+              <span>Primary Metric:</span>
+              <span className="font-heading font-black text-clay-text dark:text-white capitalize">
+                {selectedType === 'cycling'
+                  ? 'Speed (km/h) & Elevation'
+                  : selectedType === 'walking'
+                  ? 'Live Step Count & Pace'
+                  : 'Pace (min/km), Steps & Elevation'}
               </span>
             </div>
-          </div>
 
-          <div className="clay-sunken rounded-2xl p-2.5 sm:p-3">
-            <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-black font-display block truncate">
-              Pace
-            </span>
-            <div className="flex items-baseline justify-center gap-0.5 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 font-mono tracking-tight">
-                {formatPace(trackerState.currentPaceSecPerKm).split(' ')[0]}
-              </span>
-              <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono">/km</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Secondary metrics */}
-        <div className="flex justify-around text-xs text-slate-500 font-bold py-2 border-t border-slate-100 dark:border-slate-800 mb-4">
-          <span className="flex items-center gap-1.5 font-mono">
-            <Flame className="w-4 h-4 text-coral-500" />
-            <strong className="text-slate-800 dark:text-slate-100">{liveCalories}</strong> kcal
-          </span>
-          <span className="flex items-center gap-1.5 font-mono">
-            <Gauge className="w-4 h-4 text-sky-500" />
-            <strong className="text-slate-800 dark:text-slate-100">{speedDisplay}</strong> km/h
-          </span>
-          <span className="flex items-center gap-1.5 font-mono">
-            <TrendingUp className="w-4 h-4 text-lime-500" />
-            <strong className="text-slate-800 dark:text-slate-100">{Math.round(trackerState.elevationGainMeters)}</strong>m elev
-          </span>
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-center gap-3">
-          {trackerState.status === 'tracking' ? (
+            {/* BIG START BUTTON */}
             <button
-              onClick={() => geoTracker.pause()}
-              className="w-full py-4 px-6 rounded-clay-btn clay-btn-coral font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition"
+              type="button"
+              onClick={handleTriggerStart}
+              className="w-full py-4 rounded-clay-btn clay-btn-lime font-heading font-black text-base flex items-center justify-center gap-2 active:scale-95 transition shadow-lg text-clay-text"
             >
-              <Pause className="w-5 h-5 fill-current" />
-              <span>Pause Activity</span>
+              <Play className="w-6 h-6 fill-current" />
+              <span>START {selectedType.toUpperCase()}</span>
             </button>
-          ) : (
-            <>
-              <button
-                onClick={() => geoTracker.resume()}
-                className="flex-1 py-4 px-6 rounded-clay-btn clay-btn-lime font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition"
-              >
-                <Play className="w-5 h-5 fill-current" />
-                <span>Resume</span>
-              </button>
+          </div>
+        )}
 
-              <button
-                onClick={handleFinish}
-                className="flex-1 py-4 px-6 rounded-clay-btn clay-btn text-rose-600 dark:text-rose-400 font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition"
-              >
-                <Square className="w-5 h-5 fill-current" />
-                <span>Finish & Save</span>
-              </button>
-            </>
-          )}
-        </div>
+        {/* ACTIVE / PAUSED STATE: METRICS HUD */}
+        {trackerState.status !== 'idle' && (
+          <>
+            {/* Primary Numbers HUD - Adapts to Strava Sport Profile */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {/* Box 1: Distance */}
+              <div className="clay-sunken rounded-2xl p-2.5 sm:p-3">
+                <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-heading font-black block truncate">
+                  Distance
+                </span>
+                <div className="flex items-baseline justify-center gap-1 mt-0.5">
+                  <span className="text-2xl sm:text-3xl font-heading font-black text-clay-text dark:text-white tracking-tight font-mono">
+                    {distKm}
+                  </span>
+                  <span className="text-[10px] sm:text-xs font-black text-lime-600 dark:text-lime-400 font-mono">
+                    km
+                  </span>
+                </div>
+              </div>
+
+              {/* Box 2: Timer Duration */}
+              <div className="clay-sunken rounded-2xl p-2.5 sm:p-3">
+                <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-heading font-black block truncate">
+                  Moving Time
+                </span>
+                <div className="flex items-baseline justify-center gap-0.5 mt-0.5">
+                  <span className="text-xl sm:text-2xl font-black text-clay-text dark:text-white font-mono tracking-tight">
+                    {formatDuration(trackerState.durationSeconds)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Box 3: Sport Specific Gauge (Speed for Cycling, Steps for Walking, Pace for Running) */}
+              <div className="clay-sunken rounded-2xl p-2.5 sm:p-3">
+                <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-heading font-black block truncate">
+                  {selectedType === 'cycling'
+                    ? 'Speed'
+                    : selectedType === 'walking'
+                    ? 'Live Steps'
+                    : 'Pace'}
+                </span>
+                <div className="flex items-baseline justify-center gap-0.5 mt-0.5">
+                  {selectedType === 'cycling' ? (
+                    <>
+                      <span className="text-xl sm:text-2xl font-black text-clay-text dark:text-white font-mono tracking-tight">
+                        {speedDisplay}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-mono">km/h</span>
+                    </>
+                  ) : selectedType === 'walking' ? (
+                    <>
+                      <span className="text-xl sm:text-2xl font-black text-clay-coral-dark dark:text-clay-coral font-mono tracking-tight">
+                        {trackerState.steps.toLocaleString()}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-mono">steps</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl sm:text-2xl font-black text-clay-text dark:text-white font-mono tracking-tight">
+                        {formatPace(trackerState.currentPaceSecPerKm).split(' ')[0]}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono">/km</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Secondary Metrics Bar: Calories, Elevation Gain, Steps/Cadence, Speed */}
+            <div className="flex justify-around items-center text-xs text-slate-500 font-bold py-2 border-t border-slate-200/60 dark:border-slate-800">
+              {/* Calories (Incorporates Elevation + Steps) */}
+              <span className="flex items-center gap-1.5 font-mono" title="Physiological calories burned">
+                <Flame className="w-4 h-4 text-coral-500" />
+                <strong className="text-clay-text dark:text-white font-black">{liveCalories}</strong> kcal
+              </span>
+
+              {/* Elevation Gain */}
+              <span className="flex items-center gap-1.5 font-mono" title="Total elevation climbed">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                <strong className="text-clay-text dark:text-white font-black">
+                  +{Math.round(trackerState.elevationGainMeters)}
+                </strong>
+                m elev
+              </span>
+
+              {/* Steps (if running/jogging) or Speed (if cycling/walking) */}
+              {selectedType !== 'cycling' && selectedType !== 'walking' ? (
+                <span className="flex items-center gap-1.5 font-mono" title="Live steps & cadence">
+                  <Footprints className="w-4 h-4 text-lime-600 dark:text-lime-400" />
+                  <strong className="text-clay-text dark:text-white font-black">
+                    {trackerState.steps.toLocaleString()}
+                  </strong>{' '}
+                  steps
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 font-mono">
+                  <Gauge className="w-4 h-4 text-sky-500" />
+                  <strong className="text-clay-text dark:text-white font-black">{speedDisplay}</strong> km/h
+                </span>
+              )}
+            </div>
+
+            {/* Tracking Controls */}
+            <div className="flex items-center justify-center gap-3 pt-1">
+              {trackerState.status === 'tracking' ? (
+                <button
+                  type="button"
+                  onClick={() => geoTracker.pause()}
+                  className="w-full py-4 px-6 rounded-clay-btn clay-btn-coral font-heading font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition text-white shadow-md"
+                >
+                  <Pause className="w-5 h-5 fill-current" />
+                  <span>PAUSE ACTIVITY</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => geoTracker.resume()}
+                    className="flex-1 py-4 px-6 rounded-clay-btn clay-btn-lime font-heading font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition text-clay-text shadow-md"
+                  >
+                    <Play className="w-5 h-5 fill-current" />
+                    <span>RESUME</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleFinish}
+                    className="flex-1 py-4 px-6 rounded-clay-btn clay-btn text-rose-600 dark:text-rose-400 font-heading font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
+                  >
+                    <Square className="w-5 h-5 fill-current" />
+                    <span>FINISH & SAVE</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
