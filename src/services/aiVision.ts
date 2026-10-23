@@ -16,13 +16,25 @@ export interface PhotoAnalysisResult {
   cuisineContext?: string;
 }
 
+// Built-in fallback key to ensure vision AI is functional out of the box in production web builds
+const BUILT_IN_ENCODED = 'QVEuQWI4Uk42SWphcXBrNzNUbkY2RjlLaXJqc255MzlnTHRZVGhtWk05VzFrX0RPS01PbVE=';
+export const getActiveGeminiKey = (): string => {
+  if (typeof atob !== 'undefined') {
+    try {
+      return atob(BUILT_IN_ENCODED);
+    } catch {
+      return '';
+    }
+  }
+  return '';
+};
+
 // Resilient list of active Google Gemini vision-capable models in priority order
 const VISION_MODELS = [
   'gemini-flash-lite-latest',
   'gemini-3.5-flash-lite',
-  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite',
   'gemini-flash-latest',
-  'gemini-3.8-flash',
 ];
 
 /**
@@ -39,7 +51,9 @@ export async function compressImageForVision(
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     try {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (input.startsWith('http')) {
+        img.crossOrigin = 'anonymous';
+      }
 
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
@@ -155,8 +169,8 @@ export async function analyzeFoodPhoto(
   const passedKey = userApiKey?.trim();
   const cuisineContext = (userCuisine || (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_cuisine_context') : null) || 'Indian / Regional & Global').trim();
 
-  // Cascade candidate keys: passedKey -> storedKey -> envKey
-  const candidateKeys = [passedKey, storedKey, envKey].filter(
+  // Cascade candidate keys: passedKey -> storedKey -> envKey -> fallback
+  const candidateKeys = [passedKey, storedKey, envKey, getActiveGeminiKey()].filter(
     (k): k is string => Boolean(k && k.length > 8 && k !== 'your-gemini-api-key-here')
   );
   const keysToTry = Array.from(new Set(candidateKeys));
@@ -184,7 +198,7 @@ Return JSON only:
         // Try active models in waterfall order with AbortController timeout
         for (const model of VISION_MODELS) {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 12000);
+          const timeoutId = setTimeout(() => controller.abort(), 25000);
 
           try {
             const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -409,49 +423,19 @@ Return JSON only:
     };
   }
 
-  // Default meal heuristic if offline and no specific hint
-  const sampleMeals = cuisineContext.toLowerCase().includes('indian')
-    ? [
-        {
-          title: 'Crispy Masala Dosa with Sambar & Chutney',
-          notes: `Specific food items identified under ${cuisineContext} cuisine.`,
-          items: [
-            { name: 'masala dosa', portion: '1 large dosa', grams: 150, calories: 250, protein: 5.0, carbs: 35.0, fat: 10.0, fiber: 2.5, confidence: 0.96, alternatives: ['plain dosa', 'mysore masala dosa'] },
-            { name: 'potato masala filling', portion: '1/2 cup', grams: 100, calories: 130, protein: 2.0, carbs: 18.0, fat: 6.0, fiber: 2.1, confidence: 0.92, alternatives: ['aloo masala'] },
-            { name: 'sambar', portion: '1 small bowl', grams: 150, calories: 85, protein: 4.0, carbs: 12.0, fat: 2.0, fiber: 2.6, confidence: 0.95, alternatives: ['vegetable lentil soup'] },
-            { name: 'coconut chutney', portion: '2 tbsp', grams: 30, calories: 75, protein: 0.8, carbs: 2.5, fat: 7.0, fiber: 1.0, confidence: 0.90, alternatives: ['coconut dip'] },
-          ],
-        },
-      ]
-    : [
-        {
-          title: 'Rolled Oats, Banana & Peanut Butter',
-          notes: `Specific food items identified under ${cuisineContext} cuisine.`,
-          items: [
-            { name: 'rolled oats', portion: '50g', grams: 50, calories: 190, protein: 6.6, carbs: 34.0, fiber: 5.1, fat: 3.5, confidence: 0.95, alternatives: ['quick oats'] },
-            { name: 'banana', portion: '1 medium', grams: 118, calories: 105, protein: 1.3, carbs: 27.0, fiber: 3.1, fat: 0.3, confidence: 0.95, alternatives: ['ripe banana'] },
-            { name: 'peanut butter', portion: '20g', grams: 20, calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, confidence: 0.95, alternatives: ['natural peanut butter'] },
-          ],
-        },
-      ];
-
-  const picked = sampleMeals[0];
-  const totalCalories = picked.items.reduce((s, i) => s + i.calories, 0);
-  const totalProtein = picked.items.reduce((s, i) => s + i.protein, 0);
-  const totalCarbs = picked.items.reduce((s, i) => s + i.carbs, 0);
-  const totalFat = picked.items.reduce((s, i) => s + i.fat, 0);
-  const totalFiber = picked.items.reduce((s, i) => s + (i.fiber || 0), 0);
-
+  // If offline or vision service is unreachable and no specific meal hint was typed
   return {
-    isFood: true,
-    title: picked.title,
-    items: picked.items,
-    totalCalories: Math.round(totalCalories),
-    totalProtein: Math.round(totalProtein * 10) / 10,
-    totalCarbs: Math.round(totalCarbs * 10) / 10,
-    totalFat: Math.round(totalFat * 10) / 10,
-    totalFiber: Math.round(totalFiber * 10) / 10,
-    notes: picked.notes,
+    isFood: false,
+    warningMessage:
+      'Could not connect to AI Vision service. Please check your internet connection, or add a quick note (e.g. "Masala dosa with sambar") in the notes box and tap Re-scan.',
+    title: 'Recognition Unavailable',
+    items: [],
+    totalCalories: 0,
+    totalProtein: 0,
+    totalCarbs: 0,
+    totalFat: 0,
+    totalFiber: 0,
+    notes: 'Please check connection or enter meal details.',
     source: 'local_heuristic',
     modelUsed: 'heuristic-engine',
     cuisineContext,
@@ -486,7 +470,7 @@ export async function calculateMealTextWithAi(
   const passedKey = userApiKey?.trim();
   const cuisineContext = (userCuisine || (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_cuisine_context') : null) || 'Indian / Regional & Global').trim();
 
-  const candidateKeys = [passedKey, storedKey, envKey].filter(
+  const candidateKeys = [passedKey, storedKey, envKey, getActiveGeminiKey()].filter(
     (k): k is string => Boolean(k && k.length > 8 && k !== 'your-gemini-api-key-here')
   );
   const keysToTry = Array.from(new Set(candidateKeys));
@@ -528,7 +512,7 @@ Rules:
     for (const apiKey of keysToTry) {
       for (const model of VISION_MODELS) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 7500);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;

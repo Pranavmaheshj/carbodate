@@ -541,7 +541,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                         type="text"
                         value={mealHint}
                         onChange={(e) => setMealHint(e.target.value)}
-                        placeholder='e.g. "50g oats with a banana and 20g peanut butter for breakfast"'
+                        placeholder='e.g. "Masala dosa with sambar" or "2 rotis with dal"'
                         className="clay-input w-full px-3.5 py-2 text-xs font-bold text-clay-text dark:text-white rounded-xl"
                       />
                     </div>
@@ -673,7 +673,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                         type="text"
                         value={mealHint}
                         onChange={(e) => setMealHint(e.target.value)}
-                        placeholder='Add notes (e.g. "50g oats with a banana and 20g peanut butter")'
+                        placeholder='Add notes (e.g. "Masala dosa with sambar" or "2 rotis with paneer")'
                         className="bg-transparent flex-1 text-xs font-bold text-clay-text dark:text-white placeholder:text-slate-400 focus:outline-none px-1 min-w-0"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && imagePreview && !isScanning) {

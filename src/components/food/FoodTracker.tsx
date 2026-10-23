@@ -72,9 +72,11 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
       calculations,
       allMeals && allMeals.length > 0 ? allMeals : meals,
       allActivities || [],
-      allGymSessions || []
+      allGymSessions || [],
+      new Date(),
+      profile?.createdAt
     );
-  }, [calculations, allMeals, meals, allActivities, allGymSessions]);
+  }, [calculations, allMeals, meals, allActivities, allGymSessions, profile?.createdAt]);
 
   // Today's total consumed calories and macros
   const totalEaten = meals.reduce((sum, m) => sum + (m.calories || 0), 0);
@@ -261,25 +263,19 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
               className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
                 weeklyDeficit.hasShortfall
                   ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-300/40 text-amber-900 dark:text-amber-200'
-                  : weeklyDeficit.bankedCalories > 0
-                  ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300/40 text-emerald-900 dark:text-emerald-200'
-                  : 'clay-sunken text-slate-400'
+                  : 'clay-sunken text-slate-700 dark:text-slate-300'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {weeklyDeficit.hasShortfall ? (
                   <Clock className="w-4 h-4 text-amber-500 flex-shrink-0 animate-pulse" />
-                ) : weeklyDeficit.bankedCalories > 0 ? (
-                  <Sparkles className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                 ) : (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                 )}
                 <span className="truncate font-sans font-bold text-[11px]">
                   {weeklyDeficit.hasShortfall
-                    ? `Weekly Rollover: ${weeklyDeficit.shortfallCalories} kcal shortfall from earlier this week is rolled over. You can complete it today or across remaining days!`
-                    : weeklyDeficit.bankedCalories > 0
-                    ? `Banked Buffer: +${weeklyDeficit.bankedCalories} kcal banked! You can eat up to ${standardTargetCals + weeklyDeficit.bankedCalories} kcal on any day this week without slowing fat loss.`
-                    : `Weekly Deficit On Track: ${weeklyDeficit.totalDeficitAchievedSoFar} / ${weeklyDeficit.weeklyDeficitTarget} kcal achieved so far.`}
+                    ? `Weekly Rollover: ${weeklyDeficit.shortfallCalories} kcal shortfall is rolled over to complete by Sunday.`
+                    : `Weekly Deficit On Track: ${weeklyDeficit.totalDeficitAchievedSoFar} / ${weeklyDeficit.weeklyDeficitTarget} kcal achieved.`}
                 </span>
               </div>
               <span className="font-heading font-black text-[11px] whitespace-nowrap flex-shrink-0 font-mono">

@@ -87,15 +87,10 @@ export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
               <Clock className="w-4 h-4 text-amber-500 animate-pulse" />
               <span>Rollover Active: -{shortfallCalories} kcal</span>
             </div>
-          ) : bankedCalories > 0 ? (
-            <div className="clay-chip bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs px-3 py-1.5 flex items-center gap-1.5">
-              <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>+{bankedCalories} kcal Banked Buffer</span>
-            </div>
           ) : (
             <div className="clay-chip bg-lime-500/15 border border-lime-500/30 text-lime-800 dark:text-lime-300 text-xs px-3 py-1.5 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-lime-600 dark:text-lime-400" />
-              <span>On Pace for Goal</span>
+              <span>Weekly Deficit On Track</span>
             </div>
           )}
         </div>
@@ -190,12 +185,16 @@ export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
 
                 {/* Day status indicator */}
                 <div className="my-1 flex items-center justify-center">
-                  {day.isToday ? (
+                  {day.isBeforeUserJoined ? (
+                    <span className="text-[9px] text-slate-400 font-bold">Not Started</span>
+                  ) : day.isToday ? (
                     <span className="text-[9px] font-black uppercase text-slate-900 bg-lime-300 dark:bg-lime-400 px-1.5 py-0.5 rounded-full">
                       Today
                     </span>
                   ) : day.isPast ? (
-                    isCompleted ? (
+                    day.status === 'untracked' ? (
+                      <span className="text-[9px] text-slate-400 font-bold">—</span>
+                    ) : isCompleted ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     ) : isShortfall ? (
                       <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -213,16 +212,36 @@ export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
 
                 {/* Deficit Numbers */}
                 <div className="font-mono text-[10px] sm:text-[11px] font-black">
-                  {day.isPast || (day.isToday && day.eaten > 0) ? (
-                    <span
-                      className={
-                        day.achievedDeficit >= day.targetDeficit
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-amber-600 dark:text-amber-400'
-                      }
-                    >
-                      {day.achievedDeficit > 0 ? `-${day.achievedDeficit}` : `+${Math.abs(day.achievedDeficit)}`}
-                    </span>
+                  {day.isBeforeUserJoined ? (
+                    <span className="text-slate-400 font-normal">—</span>
+                  ) : day.isPast ? (
+                    day.status === 'untracked' ? (
+                      <span className="text-slate-400 font-normal">—</span>
+                    ) : (
+                      <span
+                        className={
+                          day.achievedDeficit >= day.targetDeficit
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }
+                      >
+                        {day.achievedDeficit > 0 ? `-${day.achievedDeficit}` : `+${Math.abs(day.achievedDeficit)}`}
+                      </span>
+                    )
+                  ) : day.isToday ? (
+                    day.eaten > 0 || day.burned > 0 ? (
+                      <span
+                        className={
+                          day.achievedDeficit >= day.targetDeficit
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-clay-text dark:text-white'
+                        }
+                      >
+                        {day.achievedDeficit > 0 ? `-${day.achievedDeficit}` : `+${Math.abs(day.achievedDeficit)}`}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 font-normal">0 kcal</span>
+                    )
                   ) : (
                     <span className="text-slate-400">-{day.targetDeficit}</span>
                   )}
@@ -234,57 +253,31 @@ export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
       </div>
 
       {/* Dynamic Catch-up & Rollover Recommendation Card */}
-      <div
-        className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-          hasShortfall
-            ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300/40 text-amber-950 dark:text-amber-100'
-            : bankedCalories > 0
-            ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300/40 text-emerald-950 dark:text-emerald-100'
-            : 'clay-card-flat border-slate-200/60 dark:border-slate-700/60'
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 font-bold ${
-              hasShortfall
-                ? 'bg-amber-400 text-slate-950 shadow-sm'
-                : bankedCalories > 0
-                ? 'bg-emerald-400 text-slate-950 shadow-sm'
-                : 'clay-pebble text-clay-text'
-            }`}
-          >
-            {hasShortfall ? (
+      {hasShortfall ? (
+        <div className="p-4 sm:p-5 rounded-2xl border bg-amber-50/50 dark:bg-amber-950/20 border-amber-300/40 text-amber-950 dark:text-amber-100 transition-all">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 font-bold bg-amber-400 text-slate-950 shadow-sm">
               <Zap className="w-5 h-5 fill-current" />
-            ) : bankedCalories > 0 ? (
-              <Sparkles className="w-5 h-5 fill-current" />
-            ) : (
-              <TrendingUp className="w-5 h-5" />
-            )}
-          </div>
-
-          <div className="flex-1 space-y-1.5 text-xs">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="font-heading font-black text-sm uppercase tracking-wide">
-                {hasShortfall
-                  ? `Weekly Deficit Catch-Up Options`
-                  : bankedCalories > 0
-                  ? `Banked Buffer Active (${bankedCalories} kcal)`
-                  : `Weekly Deficit Pacing`}
-              </span>
-              {safetyFloorEnforced && (
-                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-300/40 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-rose-600" />
-                  <span>Safety Floor Enforced</span>
-                </span>
-              )}
             </div>
 
-            <p className="text-clay-text/80 dark:text-slate-300 leading-relaxed font-sans">
-              {recommendedCatchupAdvice}
-            </p>
+            <div className="flex-1 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="font-heading font-black text-sm uppercase tracking-wide">
+                  Weekly Deficit Catch-Up Options
+                </span>
+                {safetyFloorEnforced && (
+                  <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-300/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-rose-600" />
+                    <span>Safety Floor Enforced</span>
+                  </span>
+                )}
+              </div>
 
-            {/* If Shortfall exists: Show 2 actionable catch-up strategies */}
-            {hasShortfall && (
+              <p className="text-clay-text/80 dark:text-slate-300 leading-relaxed font-sans">
+                {recommendedCatchupAdvice}
+              </p>
+
+              {/* Show 2 actionable catch-up strategies */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 mt-2 border-t border-amber-300/30 dark:border-amber-700/30">
                 {/* Option 1: Even spread */}
                 <div className="p-3 rounded-xl clay-sunken space-y-1">
@@ -350,10 +343,15 @@ export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-3.5 rounded-2xl clay-sunken flex items-center gap-2.5 text-xs text-clay-text/80 dark:text-slate-300">
+          <Info className="w-4 h-4 text-clay-lime-dark dark:text-clay-lime flex-shrink-0" />
+          <span>{recommendedCatchupAdvice}</span>
+        </div>
+      )}
     </div>
   );
 };

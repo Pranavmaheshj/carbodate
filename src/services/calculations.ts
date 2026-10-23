@@ -341,15 +341,17 @@ export function filterGpsPoints(newPoint: RoutePoint, lastPoint?: RoutePoint): {
 
 /**
  * Calculates current 7-day Monday-to-Sunday weekly calorie deficit progression,
- * tracking daily deficit completion, shortfall carry-over, and flexible single-day or even
- * catch-up balance across the remainder of the week.
+ * tracking daily deficit completion and flexible single-day or even catch-up balance.
+ * If a user created their account partway through the week (e.g. at the end of the week),
+ * progress is tracked strictly from their started day forward without mock data.
  */
 export function calculateWeeklyDeficitSummary(
   calculations: BodyCalculations,
   allMeals: MealItem[],
   allActivities: ActivityRecord[],
   allGymSessions: GymWorkoutSession[],
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  userCreatedAt?: string
 ): WeeklyDeficitSummary {
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -363,16 +365,19 @@ export function calculateWeeklyDeficitSummary(
 
   const todayStr = ref.toISOString().split('T')[0];
 
+  // User join/start date (if created at the end of the week, e.g. Saturday, track from that day)
+  const userStartDate = userCreatedAt ? userCreatedAt.split('T')[0] : todayStr;
+
   // Daily target and deficit
   const tdee = calculations.tdee;
   const standardDailyCalorieTarget = calculations.dailyCalorieTarget;
   const dailyDeficitTarget = Math.max(150, Math.abs(calculations.dailyDeficitOrSurplus) || 500);
-  const weeklyDeficitTarget = dailyDeficitTarget * 7;
   const safetyFloor = calculations.safetyFloor || 1200;
 
   const days: DayDeficitRecord[] = [];
   let totalDeficitAchievedSoFar = 0;
   let elapsedDaysCount = 0;
+  let activeDaysThisWeek = 0;
   let todayIndex = 0;
 
   for (let i = 0; i < 7; i++) {
@@ -382,6 +387,7 @@ export function calculateWeeklyDeficitSummary(
     const isToday = dateStr === todayStr;
     const isPast = dateStr < todayStr;
     const isFuture = dateStr > todayStr;
+    const isBeforeUserJoined = dateStr < userStartDate;
 
     if (isToday) todayIndex = i;
 
@@ -400,26 +406,48 @@ export function calculateWeeklyDeficitSummary(
     const burned = cardioBurn + gymBurn;
     const netCalories = eaten - burned;
 
-    // For past days or today: calculate achieved deficit
     let achievedDeficit = 0;
-    let status: 'completed' | 'shortfall' | 'surplus_banked' | 'pending' = 'pending';
+    let status: 'completed' | 'shortfall' | 'surplus_banked' | 'pending' | 'untracked' = 'pending';
     let shortfallOrSurplus = 0;
 
-    if (isPast || (isToday && eaten > 0)) {
-      achievedDeficit = tdee - netCalories;
-      shortfallOrSurplus = achievedDeficit - dailyDeficitTarget;
-      totalDeficitAchievedSoFar += achievedDeficit;
-      elapsedDaysCount++;
+    if (isBeforeUserJoined) {
+      // Days before user created account: NOT part of the user's journey, do NOT use mock data!
+      status = 'untracked';
+      achievedDeficit = 0;
+      shortfallOrSurplus = 0;
+    } else {
+      activeDaysThisWeek++;
 
-      if (achievedDeficit >= dailyDeficitTarget) {
-        status = shortfallOrSurplus > 150 ? 'surplus_banked' : 'completed';
+      if (isPast) {
+        if (eaten > 0 || burned > 0) {
+          achievedDeficit = tdee - netCalories;
+          shortfallOrSurplus = achievedDeficit - dailyDeficitTarget;
+          totalDeficitAchievedSoFar += achievedDeficit;
+          elapsedDaysCount++;
+          status = achievedDeficit >= dailyDeficitTarget ? 'completed' : 'shortfall';
+        } else {
+          // Unlogged past day
+          status = 'untracked';
+          achievedDeficit = 0;
+          shortfallOrSurplus = -dailyDeficitTarget;
+          elapsedDaysCount++;
+        }
+      } else if (isToday) {
+        elapsedDaysCount++;
+        if (eaten > 0 || burned > 0) {
+          achievedDeficit = tdee - netCalories;
+          shortfallOrSurplus = achievedDeficit - dailyDeficitTarget;
+          totalDeficitAchievedSoFar += achievedDeficit;
+          status = achievedDeficit >= dailyDeficitTarget ? 'completed' : 'pending';
+        } else {
+          status = 'pending';
+          achievedDeficit = 0;
+        }
       } else {
-        status = 'shortfall';
+        // Future days
+        status = 'pending';
+        achievedDeficit = 0;
       }
-    } else if (isToday) {
-      // Today started but no meals logged yet
-      elapsedDaysCount++;
-      status = 'pending';
     }
 
     days.push({
@@ -429,11 +457,12 @@ export function calculateWeeklyDeficitSummary(
       isPast,
       isToday,
       isFuture,
+      isBeforeUserJoined,
       eaten,
       burned,
       netCalories,
       achievedDeficit,
-      targetDeficit: dailyDeficitTarget,
+      targetDeficit: isBeforeUserJoined ? 0 : dailyDeficitTarget,
       status,
       shortfallOrSurplus,
     });
@@ -442,20 +471,26 @@ export function calculateWeeklyDeficitSummary(
   const weekStartDate = days[0].dateStr;
   const weekEndDate = days[6].dateStr;
 
+  // Active weekly target: only from the day the user actually started!
+  const effectiveActiveDays = Math.max(1, activeDaysThisWeek);
+  const weeklyDeficitTarget = dailyDeficitTarget * effectiveActiveDays;
+
   // Remaining days in week: from today through Sunday
   const remainingDaysCount = Math.max(1, 7 - todayIndex);
   const futureDaysCount = Math.max(0, 6 - todayIndex);
 
-  // Expected deficit up to today
+  // Expected deficit up to today (only for elapsed active days)
   const cumulativeExpected = dailyDeficitTarget * Math.max(1, elapsedDaysCount);
   const currentWeeklyBalance = totalDeficitAchievedSoFar - cumulativeExpected;
 
   const hasShortfall = currentWeeklyBalance < -50;
   const shortfallCalories = hasShortfall ? Math.abs(currentWeeklyBalance) : 0;
-  const bankedCalories = currentWeeklyBalance > 50 ? currentWeeklyBalance : 0;
+  const bankedCalories = 0; // Removed mock/inflated banked buffer note per user request
 
   const remainingDeficitNeeded = Math.max(0, weeklyDeficitTarget - totalDeficitAchievedSoFar);
-  const weeklyProgressPercent = Math.min(100, Math.max(0, Math.round((totalDeficitAchievedSoFar / weeklyDeficitTarget) * 100)));
+  const weeklyProgressPercent = weeklyDeficitTarget > 0
+    ? Math.min(100, Math.max(0, Math.round((totalDeficitAchievedSoFar / weeklyDeficitTarget) * 100)))
+    : 0;
 
   // Adjusted daily deficit distributed across remaining days
   const adjustedDailyDeficit = Math.round(remainingDeficitNeeded / remainingDaysCount);
@@ -470,18 +505,17 @@ export function calculateWeeklyDeficitSummary(
   // Single-day catchup deficit
   const singleDayCatchupDeficit = Math.round(shortfallCalories);
 
-  // Catchup advice formulation
+  // Catchup advice formulation without mock banked buffer notes
   let recommendedCatchupAdvice = '';
   if (hasShortfall) {
     if (safetyFloorEnforced) {
-      recommendedCatchupAdvice = `You're ${shortfallCalories} kcal behind target this week. Due to safe calorie minimums (${safetyFloor} kcal/day), complete the remaining deficit by adding a 35-min brisk walk or treadmill workout (-${Math.min(shortfallCalories, 350)} kcal) on any upcoming day of the week!`;
+      recommendedCatchupAdvice = `You're ${shortfallCalories} kcal behind target this week. Due to safe calorie minimums (${safetyFloor} kcal/day), complete the remaining deficit by adding a 35-min brisk walk or treadmill workout (-${Math.min(shortfallCalories, 350)} kcal) on any upcoming day!`;
     } else {
-      recommendedCatchupAdvice = `You're ${shortfallCalories} kcal behind target. Complete it by eating ~${adjustedDailyCalorieTarget} kcal/day for the remaining ${remainingDaysCount} days, or make it all up on any single day (e.g. ${days[Math.min(6, todayIndex + 1)]?.dayName || 'Saturday'}) with an active workout!`;
+      recommendedCatchupAdvice = `You're ${shortfallCalories} kcal behind target. Complete it by eating ~${adjustedDailyCalorieTarget} kcal/day for the remaining ${remainingDaysCount} days, or make it all up on any single day (e.g. ${days[Math.min(6, todayIndex + 1)]?.dayName || 'Sunday'}) with an active workout!`;
     }
-  } else if (bankedCalories > 0) {
-    recommendedCatchupAdvice = `Awesome! You have ${bankedCalories} kcal banked this week. You can enjoy a higher calorie meal (${standardDailyCalorieTarget + bankedCalories} kcal) on any day of the week and still reach 100% of your fat loss goal!`;
   } else {
-    recommendedCatchupAdvice = `You are perfectly on pace for your ${weeklyDeficitTarget} kcal weekly deficit goal. Keep maintaining your ${standardDailyCalorieTarget} kcal target!`;
+    const startedDayName = days.find((d) => !d.isBeforeUserJoined)?.dayName || 'Today';
+    recommendedCatchupAdvice = `Progress is tracked starting from ${startedDayName} (${effectiveActiveDays} active day${effectiveActiveDays > 1 ? 's' : ''} this week). Daily target: ${dailyDeficitTarget} kcal deficit.`;
   }
 
   return {
@@ -496,6 +530,7 @@ export function calculateWeeklyDeficitSummary(
     elapsedDaysCount,
     remainingDaysCount,
     futureDaysCount,
+    activeDaysThisWeek: effectiveActiveDays,
     currentWeeklyBalance,
     hasShortfall,
     shortfallCalories,

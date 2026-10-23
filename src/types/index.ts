@@ -224,12 +224,13 @@ export interface DayDeficitRecord {
   isPast: boolean;
   isToday: boolean;
   isFuture: boolean;
+  isBeforeUserJoined?: boolean;
   eaten: number;
   burned: number;
   netCalories: number;
   achievedDeficit: number;
   targetDeficit: number;
-  status: 'completed' | 'shortfall' | 'surplus_banked' | 'pending';
+  status: 'completed' | 'shortfall' | 'surplus_banked' | 'pending' | 'untracked';
   shortfallOrSurplus: number; // achievedDeficit - targetDeficit
 }
 
@@ -245,6 +246,7 @@ export interface WeeklyDeficitSummary {
   elapsedDaysCount: number;
   remainingDaysCount: number; // days remaining in week (including today if pending)
   futureDaysCount: number; // days strictly after today
+  activeDaysThisWeek: number; // number of days since user started up to end of week
   currentWeeklyBalance: number; // totalDeficitAchievedSoFar - (dailyDeficitTarget * elapsedDaysCount)
   hasShortfall: boolean;
   shortfallCalories: number;

@@ -93,9 +93,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       calculations,
       allMeals && allMeals.length > 0 ? allMeals : meals,
       activities,
-      gymSessions
+      gymSessions,
+      new Date(),
+      profile?.createdAt
     );
-  }, [calculations, allMeals, meals, activities, gymSessions]);
+  }, [calculations, allMeals, meals, activities, gymSessions, profile?.createdAt]);
 
   // Most recent weight
   const latestWeight =
