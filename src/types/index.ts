@@ -19,6 +19,7 @@ export interface UserProfile {
   dailyWaterGoalMl: number;
   cuisinePreference?: string;
   isDemoUser?: boolean;
+  restDays?: number[]; // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
   createdAt: string;
 }
 
@@ -225,6 +226,7 @@ export interface DayDeficitRecord {
   isToday: boolean;
   isFuture: boolean;
   isBeforeUserJoined?: boolean;
+  isRestDay?: boolean;
   eaten: number;
   burned: number;
   netCalories: number;

@@ -243,7 +243,9 @@ export function App() {
     StorageService.saveWeightRecord(record);
     setWeights(StorageService.getWeightRecords());
     if (profile) {
-      setProfile({ ...profile, currentWeightKg: record.weightKg });
+      const updatedProfile = { ...profile, currentWeightKg: record.weightKg };
+      StorageService.saveProfile(updatedProfile);
+      setProfile(updatedProfile);
     }
     syncToCloud();
   };
@@ -383,6 +385,8 @@ export function App() {
               onOpenPhotoScan={() => setIsPhotoScanOpen(true)}
               onSaveWeight={handleSaveWeight}
               onAddWater={handleAddWater}
+              onUpdateWorkoutPlan={handleUpdateWorkoutPlan}
+              onUpdateProfile={handleUpdateProfile}
             />
           )}
 

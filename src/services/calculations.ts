@@ -351,7 +351,8 @@ export function calculateWeeklyDeficitSummary(
   allActivities: ActivityRecord[],
   allGymSessions: GymWorkoutSession[],
   referenceDate: Date = new Date(),
-  userCreatedAt?: string
+  userCreatedAt?: string,
+  restDays?: number[]
 ): WeeklyDeficitSummary {
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -388,6 +389,7 @@ export function calculateWeeklyDeficitSummary(
     const isPast = dateStr < todayStr;
     const isFuture = dateStr > todayStr;
     const isBeforeUserJoined = dateStr < userStartDate;
+    const isRestDay = Array.isArray(restDays) ? restDays.includes(d.getDay()) : false;
 
     if (isToday) todayIndex = i;
 
@@ -458,6 +460,7 @@ export function calculateWeeklyDeficitSummary(
       isToday,
       isFuture,
       isBeforeUserJoined,
+      isRestDay,
       eaten,
       burned,
       netCalories,

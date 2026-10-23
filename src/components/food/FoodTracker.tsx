@@ -74,9 +74,10 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
       allActivities || [],
       allGymSessions || [],
       new Date(),
-      profile?.createdAt
+      profile?.createdAt,
+      profile?.restDays
     );
-  }, [calculations, allMeals, meals, allActivities, allGymSessions, profile?.createdAt]);
+  }, [calculations, allMeals, meals, allActivities, allGymSessions, profile?.createdAt, profile?.restDays]);
 
   // Today's total consumed calories and macros
   const totalEaten = meals.reduce((sum, m) => sum + (m.calories || 0), 0);

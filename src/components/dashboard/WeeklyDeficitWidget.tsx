@@ -178,9 +178,16 @@ export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
                   >
                     {day.dayName}
                   </span>
-                  <span className="text-[9px] text-slate-400 block font-mono">
-                    {day.dateStr.slice(8)}
-                  </span>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-[9px] text-slate-400 block font-mono">
+                      {day.dateStr.slice(8)}
+                    </span>
+                    {day.isRestDay && (
+                      <span className="text-[7.5px] font-black uppercase text-purple-600 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/60 px-1 rounded-sm leading-tight">
+                        Rest
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Day status indicator */}

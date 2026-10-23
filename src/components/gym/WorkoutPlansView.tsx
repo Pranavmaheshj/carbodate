@@ -6,8 +6,10 @@ import {
   Trash2,
   Play,
   Clock,
+  Moon,
   X
 } from 'lucide-react';
+import { StorageService } from '../../services/storage';
 import { WorkoutPlan, WorkoutPlanDay, UserProfile, MuscleGroup } from '../../types';
 
 interface WorkoutPlansViewProps {
@@ -45,13 +47,32 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
 
   const activeDay = orderedDays[selectedDayIndex] || null;
 
-  const handleToggleRestDay = () => {
-    if (!currentPlan || !activeDay) return;
-    const updatedDays = currentPlan.days.map((d) =>
-      d.dayOfWeek === activeDay.dayOfWeek ? { ...d, isRestDay: !d.isRestDay } : d
-    );
+  const handleToggleRestDay = (dayOfWeek?: number | React.MouseEvent) => {
+    if (!currentPlan) return;
+    const targetDayOfWeek = typeof dayOfWeek === 'number' ? dayOfWeek : activeDay?.dayOfWeek;
+    if (targetDayOfWeek === undefined) return;
+
+    const updatedDays = currentPlan.days.map((d) => {
+      if (d.dayOfWeek === targetDayOfWeek) {
+        const nextRest = !d.isRestDay;
+        return {
+          ...d,
+          isRestDay: nextRest,
+          split: nextRest
+            ? (d.split === 'Rest & Recovery' || d.split === 'Rest' ? d.split : 'Rest & Recovery')
+            : (d.split === 'Rest & Recovery' || d.split === 'Rest' ? 'Full Body Workout' : d.split),
+        };
+      }
+      return d;
+    });
+
     const updatedPlan = { ...currentPlan, days: updatedDays };
     onUpdatePlan(updatedPlan);
+
+    // Sync profile restDays
+    const newRestDays = updatedDays.filter((d) => d.isRestDay).map((d) => d.dayOfWeek);
+    const updatedProfile = { ...profile, restDays: newRestDays };
+    StorageService.saveProfile(updatedProfile);
   };
 
   const handleAddExerciseToDay = () => {
@@ -230,6 +251,41 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
             <Sparkles className="w-4 h-4 fill-current" />
             <span>Generate Plan</span>
           </button>
+        </div>
+
+        {/* Weekly Rest Days Configuration Bar */}
+        <div className="mt-6 p-3.5 sm:p-4 rounded-2xl clay-sunken flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl clay-btn-lilac text-purple-900 dark:text-purple-200 flex items-center justify-center font-bold flex-shrink-0">
+              <Moon className="w-4 h-4 stroke-[2.5]" />
+            </div>
+            <div>
+              <span className="text-xs font-heading font-black text-clay-text dark:text-white block">
+                Scheduled Rest Days
+              </span>
+              <span className="text-[11px] text-slate-400 font-sans block">
+                Tap any day to toggle your preferred rest & recovery days
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {orderedDays.map((d) => (
+              <button
+                key={d.dayOfWeek}
+                type="button"
+                onClick={() => handleToggleRestDay(d.dayOfWeek)}
+                className={`py-1.5 px-2.5 rounded-xl text-xs font-heading font-black transition active:scale-95 ${
+                  d.isRestDay
+                    ? 'clay-btn-lilac text-purple-950 dark:text-purple-100 ring-2 ring-purple-400/40 shadow-xs'
+                    : 'clay-pebble text-clay-text/60 dark:text-slate-400'
+                }`}
+                title={d.isRestDay ? `${d.dayName} is a Rest Day` : `Set ${d.dayName} as Rest Day`}
+              >
+                {d.dayName.slice(0, 3)} {d.isRestDay ? '✓' : ''}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Day Tabs (Mon - Sun) */}

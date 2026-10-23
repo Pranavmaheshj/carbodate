@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Scale, Check, Calendar, Minus, Plus } from 'lucide-react';
 import { WeightRecord, UserProfile } from '../../types';
@@ -22,6 +22,16 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
   const [weightKg, setWeightKg] = useState<number>(profile.currentWeightKg || 75);
   const [weightLb, setWeightLb] = useState<number>(Math.round(kgToLb(profile.currentWeightKg || 75) * 10) / 10);
   const [note, setNote] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      const today = new Date().toISOString().split('T')[0];
+      setDate(today);
+      const initialKg = profile.currentWeightKg || 75;
+      setWeightKg(initialKg);
+      setWeightLb(Math.round(kgToLb(initialKg) * 10) / 10);
+    }
+  }, [isOpen, profile.currentWeightKg]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

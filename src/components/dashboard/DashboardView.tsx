@@ -48,6 +48,8 @@ interface DashboardViewProps {
   onOpenPhotoScan: () => void;
   onSaveWeight: (record: WeightRecord) => void;
   onAddWater: (amount: number) => void;
+  onUpdateWorkoutPlan?: (plan: WorkoutPlan) => void;
+  onUpdateProfile?: (profile: UserProfile) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -66,11 +68,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenPhotoScan,
   onSaveWeight,
   onAddWater,
+  onUpdateWorkoutPlan,
+  onUpdateProfile,
 }) => {
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
 
   // Compute today's totals
   const todayDateStr = new Date().toISOString().split('T')[0];
+  const todayWeightRecord = weights.find((w) => w.date === todayDateStr);
+  const prevWeightRecord = weights.filter((w) => w.date < todayDateStr).slice(-1)[0];
+  const dailyWeightDelta =
+    todayWeightRecord && prevWeightRecord
+      ? Math.round((todayWeightRecord.weightKg - prevWeightRecord.weightKg) * 10) / 10
+      : null;
+
+  const handleToggleTodayRest = () => {
+    if (!workoutPlan || !onUpdateWorkoutPlan) return;
+    const todayDayOfWeek = new Date().getDay();
+    const updatedDays = workoutPlan.days.map((d) =>
+      d.dayOfWeek === todayDayOfWeek ? { ...d, isRestDay: !d.isRestDay } : d
+    );
+    const updatedPlan = { ...workoutPlan, days: updatedDays };
+    onUpdateWorkoutPlan(updatedPlan);
+
+    if (onUpdateProfile && profile) {
+      const isNowRest = updatedDays.find((d) => d.dayOfWeek === todayDayOfWeek)?.isRestDay;
+      const currentRest = profile.restDays || [];
+      const newRest = isNowRest
+        ? Array.from(new Set([...currentRest, todayDayOfWeek]))
+        : currentRest.filter((x) => x !== todayDayOfWeek);
+      onUpdateProfile({ ...profile, restDays: newRest });
+    }
+  };
   const todayMeals = meals.filter((m) => m.date === todayDateStr);
   const eatenCaloriesToday = todayMeals.reduce((s, m) => s + (m.calories || 0), 0);
 
@@ -95,9 +124,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       activities,
       gymSessions,
       new Date(),
-      profile?.createdAt
+      profile?.createdAt,
+      profile?.restDays
     );
-  }, [calculations, allMeals, meals, activities, gymSessions, profile?.createdAt]);
+  }, [calculations, allMeals, meals, activities, gymSessions, profile?.createdAt, profile?.restDays]);
 
   // Most recent weight
   const latestWeight =
@@ -292,10 +322,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             onClick={() => setIsWeightModalOpen(true)}
-            className="p-3 sm:p-3.5 rounded-clay-btn clay-btn-butter text-clay-text font-heading font-black text-xs flex items-center justify-center gap-2 transition active:scale-95"
+            className={`p-3 sm:p-3.5 rounded-clay-btn font-heading font-black text-xs flex items-center justify-center gap-2 transition active:scale-95 ${
+              todayWeightRecord
+                ? 'clay-btn-lime text-clay-text'
+                : 'clay-btn-butter text-clay-text'
+            }`}
           >
             <Scale className="w-4 h-4 stroke-[2.5]" />
-            <span>Weigh-In</span>
+            <span>{todayWeightRecord ? `${todayWeightRecord.weightKg} kg` : 'Weigh-In'}</span>
           </button>
         </div>
       </div>
@@ -307,6 +341,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <TodayWorkoutWidget
         plan={workoutPlan}
         onStartWorkout={onStartScheduledWorkout}
+        onToggleRestDay={handleToggleTodayRest}
+        onNavigateToPlans={() => onNavigateTab('gym')}
       />
 
       {/* 4. BENTO GRID: Weekly Puffy Activity Bars + Streak (Butter) + Weight Progression */}
@@ -437,6 +473,56 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Log Weight</span>
+          </button>
+        </div>
+
+        {/* Daily Weigh-In Status Strip */}
+        <div className="p-3.5 rounded-2xl clay-sunken flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold flex-shrink-0 ${
+                todayWeightRecord ? 'clay-btn-lime text-clay-text' : 'clay-pebble text-amber-500'
+              }`}
+            >
+              <Scale className="w-4 h-4 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-heading font-black text-clay-text dark:text-white">
+                  {todayWeightRecord
+                    ? `Today's Weight: ${todayWeightRecord.weightKg} kg`
+                    : "Today's Weight: Not Logged Yet"}
+                </span>
+                {todayWeightRecord ? (
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                    ✓ Logged Today
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                    Due Daily
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-400 font-sans block mt-0.5">
+                {todayWeightRecord
+                  ? dailyWeightDelta !== null
+                    ? `${dailyWeightDelta > 0 ? `+${dailyWeightDelta}` : dailyWeightDelta} kg change vs previous weigh-in. Daily TDEE calibrated.`
+                    : 'Daily baseline calibrated for today.'
+                  : 'Weigh in daily to update your body calculations, TDEE, and weekly deficit.'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsWeightModalOpen(true)}
+            className={`py-2 px-3.5 rounded-xl text-xs font-heading font-black transition active:scale-95 flex-shrink-0 ${
+              todayWeightRecord
+                ? 'clay-btn text-clay-text dark:text-slate-200'
+                : 'clay-btn-lime text-clay-text shadow-sm'
+            }`}
+          >
+            {todayWeightRecord ? 'Update Today' : 'Weigh In Today'}
           </button>
         </div>
 

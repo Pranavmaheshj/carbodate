@@ -90,6 +90,10 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(profile.activityLevel);
   const [goal, setGoal] = useState<FitnessGoal>(profile.goal);
   const [targetPaceKgPerWeek, setTargetPaceKgPerWeek] = useState(profile.targetPaceKgPerWeek);
+  const [restDays, setRestDays] = useState<number[]>(() => {
+    if (Array.isArray(profile.restDays)) return profile.restDays;
+    return [0]; // default Sunday
+  });
   const [geminiApiKey, setGeminiApiKey] = useState(
     localStorage.getItem('carbodate_gemini_api_key') || ''
   );
@@ -133,9 +137,39 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
       goal,
       targetPaceKgPerWeek,
       unitSystem,
+      restDays,
     };
 
     onUpdateProfile(updated);
+
+    // If current weight changed, save today's weight record automatically
+    if (currentWeightKg !== profile.currentWeightKg) {
+      const today = new Date().toISOString().split('T')[0];
+      StorageService.saveWeightRecord({
+        id: `w_${Date.now()}`,
+        userId: profile.id,
+        date: today,
+        weightKg: currentWeightKg,
+        note: 'Daily weigh-in via Settings',
+      });
+    }
+
+    // Sync workout plan rest days if plan exists
+    const plan = StorageService.getWorkoutPlan();
+    if (plan && plan.days) {
+      const updatedPlanDays = plan.days.map((d) => ({
+        ...d,
+        isRestDay: restDays.includes(d.dayOfWeek),
+        split: restDays.includes(d.dayOfWeek)
+          ? d.split === 'Rest & Recovery' || d.split === 'Rest'
+            ? d.split
+            : 'Rest & Recovery'
+          : d.split === 'Rest & Recovery' || d.split === 'Rest'
+          ? 'Full Body Workout'
+          : d.split,
+      }));
+      StorageService.saveWorkoutPlan({ ...plan, days: updatedPlanDays });
+    }
     if (geminiApiKey) {
       localStorage.setItem('carbodate_gemini_api_key', geminiApiKey);
     }
@@ -917,6 +951,66 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Weekly Rest Days Configuration */}
+        <div className="p-4 sm:p-5 rounded-2xl clay-card-flat space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <Moon className="w-4 h-4 text-purple-600 dark:text-purple-400 stroke-[2.5]" />
+                <label className="text-xs font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider block">
+                  Weekly Scheduled Rest Days
+                </label>
+              </div>
+              <span className="text-xs font-bold text-slate-400">
+                Choose which days you want as rest & recovery days
+              </span>
+            </div>
+            <div className="clay-sunken px-3 py-1 rounded-xl text-purple-700 dark:text-purple-300 font-black text-xs font-heading self-start sm:self-auto">
+              {restDays.length} {restDays.length === 1 ? 'Rest Day' : 'Rest Days'} / Week
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 pt-1">
+            {[
+              { dayNum: 1, name: 'Mon' },
+              { dayNum: 2, name: 'Tue' },
+              { dayNum: 3, name: 'Wed' },
+              { dayNum: 4, name: 'Thu' },
+              { dayNum: 5, name: 'Fri' },
+              { dayNum: 6, name: 'Sat' },
+              { dayNum: 0, name: 'Sun' },
+            ].map((d) => {
+              const isRest = restDays.includes(d.dayNum);
+              return (
+                <button
+                  key={d.dayNum}
+                  type="button"
+                  onClick={() => {
+                    if (isRest) {
+                      setRestDays(restDays.filter((x) => x !== d.dayNum));
+                    } else {
+                      setRestDays([...restDays, d.dayNum]);
+                    }
+                  }}
+                  className={`py-3 px-1 rounded-2xl text-center flex flex-col items-center justify-center transition active:scale-95 ${
+                    isRest
+                      ? 'clay-btn-lilac text-purple-950 dark:text-purple-100 font-black ring-2 ring-purple-400/50 shadow-xs'
+                      : 'clay-pebble text-clay-text/70 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="text-xs font-heading font-black">{d.name}</span>
+                  <span className="text-[9px] font-mono mt-0.5 font-bold opacity-80">
+                    {isRest ? 'Rest' : 'Train'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
+            Tap any day to toggle between <strong className="text-purple-600 dark:text-purple-400">Rest Day</strong> and <strong className="text-lime-600 dark:text-lime-400">Training Day</strong>. Your daily routine, dashboard, and week pacing will adapt automatically.
+          </p>
         </div>
 
         {/* Live Recomputed Blueprint preview in Sunken Groove */}
