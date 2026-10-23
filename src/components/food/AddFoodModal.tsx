@@ -27,6 +27,7 @@ import {
   extractFoodQueryAndQuantity,
   findFoodDatabaseMatch,
 } from '../../data/foodDatabase';
+import { calculateMealTextWithAi } from '../../services/aiVision';
 
 interface AddFoodModalProps {
   isOpen: boolean;
@@ -59,9 +60,43 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
   favoriteMeals = [],
   onOpenAiScan,
 }) => {
-  const [tab, setTab] = useState<'manual' | 'search' | 'favorites'>('manual');
+  const [tab, setTab] = useState<'ai' | 'manual' | 'search' | 'favorites'>('ai');
   const [mealType, setMealType] = useState<MealType>(defaultMealType);
   const [mealName, setMealName] = useState<string>('');
+
+  // AI Natural Language Meal Logger States
+  const [aiMealText, setAiMealText] = useState<string>('');
+  const [isCalculatingAi, setIsCalculatingAi] = useState<boolean>(false);
+  const [aiInsight, setAiInsight] = useState<string>('');
+  const [aiModelUsed, setAiModelUsed] = useState<string>('');
+
+  // Fast suggestion chips tailored to each meal
+  const mealSuggestions: Record<MealType, string[]> = {
+    dinner: [
+      '3 Rotis with Paneer Butter Masala, 1 bowl Yellow Dal and Cucumber Salad',
+      'Grilled Chicken Breast (200g) with 1 cup Steamed Rice and Broccoli',
+      '2 Masala Dosas with Coconut Chutney and Sambar',
+      '2 Aloo Parathas with 1 cup Curd and Pickle',
+    ],
+    breakfast: [
+      '3 Steamed Idlis with Sambar and Coconut Chutney',
+      '2 Masala Dosas with Sambar and Chutney',
+      'Oatmeal Bowl (50g oats) with 1 Banana, 20g Peanut Butter and Milk',
+      '3 Egg Omelette with 2 slices of Whole Wheat Toast',
+    ],
+    lunch: [
+      '1 Bowl Rice with Dal Tadka, Mixed Vegetable Sabzi and Curd',
+      '2 Rotis with Chicken Curry and Fresh Salad',
+      'Curd Rice with Pickle and 1 Roasted Papad',
+      'Rajma Chawal (1 bowl rajma + 1 bowl steamed basmati rice)',
+    ],
+    snack: [
+      '1 Cup Milk Tea with 2 Marie Biscuits',
+      'Handful Roasted Almonds (25g) and 1 Apple',
+      '1 Scoop Whey Protein Shake in Water',
+      'Sprouted Moong Chaat with Onion, Tomato and Lemon',
+    ],
+  };
 
   // Synchronize mealType when modal opens or defaultMealType changes from section clicked
   useEffect(() => {
@@ -69,6 +104,48 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
       setMealType(defaultMealType || 'breakfast');
     }
   }, [isOpen, defaultMealType]);
+
+  // Handle calculating meal nutrition via Gemini AI
+  const handleCalculateMealWithAi = async (textToCalculate?: string) => {
+    const query = (textToCalculate ?? aiMealText).trim();
+    if (!query) return;
+
+    setIsCalculatingAi(true);
+    try {
+      const cuisineContext =
+        (typeof localStorage !== 'undefined'
+          ? localStorage.getItem('carbodate_cuisine_context')
+          : null) || 'Indian / Regional & Global';
+      const customApiKey =
+        (typeof localStorage !== 'undefined'
+          ? localStorage.getItem('carbodate_gemini_api_key')
+          : null) || undefined;
+
+      const res = await calculateMealTextWithAi(query, mealType, cuisineContext, customApiKey);
+
+      if (res.items && res.items.length > 0) {
+        const generated: MealIngredient[] = res.items.map((it, idx) => ({
+          id: `ai_ing_${Date.now()}_${idx}`,
+          name: it.name,
+          quantity: it.grams || 100,
+          unit: it.grams ? 'g' : 'serving',
+          calories: it.calories,
+          protein: it.protein,
+          carbs: it.carbs,
+          fiber: it.fiber || 0,
+          fat: it.fat,
+        }));
+        setIngredients(generated);
+        setMealName(res.mealTitle);
+        setAiInsight(res.insight);
+        setAiModelUsed(res.modelUsed || '');
+      }
+    } catch (err) {
+      console.error('AI meal calculation error:', err);
+    } finally {
+      setIsCalculatingAi(false);
+    }
+  };
 
   // Starts completely clean & empty as requested (no pre-set items!)
   const [ingredients, setIngredients] = useState<MealIngredient[]>([]);
@@ -334,6 +411,26 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     setIngredients(ingredients.filter((item) => item.id !== id));
   };
 
+  // Adjust calorie count on an existing ingredient
+  const handleAdjustIngredientCalories = (id: string, delta: number) => {
+    setIngredients(
+      ingredients.map((item) => {
+        if (item.id === id) {
+          const newCals = Math.max(0, item.calories + delta);
+          const ratio = item.calories > 0 ? newCals / item.calories : 1;
+          return {
+            ...item,
+            calories: newCals,
+            protein: Math.round(item.protein * ratio * 10) / 10,
+            carbs: Math.round(item.carbs * ratio * 10) / 10,
+            fat: Math.round(item.fat * ratio * 10) / 10,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   // Update an already-added ingredient directly
   const handleUpdateExistingIngredient = (
     id: string,
@@ -510,6 +607,19 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
             <div className="clay-sunken p-1.5 rounded-2xl flex gap-1.5 mb-4 flex-shrink-0">
               <button
                 type="button"
+                onClick={() => setTab('ai')}
+                className={`flex-1 py-2 rounded-xl text-xs font-heading font-black transition flex items-center justify-center gap-1.5 ${
+                  tab === 'ai'
+                    ? 'clay-btn-lime text-clay-text shadow-sm'
+                    : 'text-clay-text/60 dark:text-slate-400 hover:text-clay-text'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-emerald-600 dark:text-lime-400" />
+                <span>AI Meal Assistant</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setTab('manual')}
                 className={`flex-1 py-2 rounded-xl text-xs font-heading font-black transition flex items-center justify-center gap-1.5 ${
                   tab === 'manual'
@@ -518,7 +628,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                 }`}
               >
                 <Layers className="w-4 h-4" />
-                <span>Add My Own Food</span>
+                <span>Custom Items</span>
               </button>
 
               <button
@@ -531,7 +641,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                 }`}
               >
                 <Search className="w-4 h-4" />
-                <span>Food Database</span>
+                <span>Database</span>
               </button>
 
               <button
@@ -547,6 +657,237 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                 <span>Favorites</span>
               </button>
             </div>
+
+            {/* TAB 0: AI NATURAL MEAL LOGGER (DEFAULT) */}
+            {tab === 'ai' && (
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                {/* AI Input Card */}
+                <div className="p-4 sm:p-5 rounded-3xl clay-card-flat space-y-3.5 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-heading font-black text-clay-text dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-600 dark:text-lime-400" />
+                      <span>What did you eat for {mealType === 'snack' ? 'Snacks' : mealType}?</span>
+                    </span>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-emerald-600" />
+                      <span>Natural Language Nutrition</span>
+                    </span>
+                  </div>
+
+                  {/* Textarea for natural meal description */}
+                  <div className="clay-sunken p-3 rounded-2xl">
+                    <textarea
+                      rows={3}
+                      value={aiMealText}
+                      onChange={(e) => setAiMealText(e.target.value)}
+                      placeholder={
+                        mealType === 'dinner'
+                          ? 'e.g. 3 rotis with paneer butter masala, 1 bowl dal and cucumber salad'
+                          : mealType === 'breakfast'
+                          ? 'e.g. 2 masala dosas with coconut chutney and sambar'
+                          : mealType === 'lunch'
+                          ? 'e.g. 1 bowl rice with dal tadka, mixed veg and curd'
+                          : 'e.g. 1 cup milk tea with 2 marie biscuits'
+                      }
+                      className="w-full bg-transparent text-xs sm:text-sm font-bold text-clay-text dark:text-white placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleCalculateMealWithAi();
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Fast 1-Tap Example Suggestions */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                      Quick Suggestions (Tap to calculate):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(mealSuggestions[mealType] || mealSuggestions.dinner).map((chip, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setAiMealText(chip);
+                            handleCalculateMealWithAi(chip);
+                          }}
+                          className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-clay-text dark:text-slate-200 transition active:scale-95 text-left border border-slate-200/50 dark:border-slate-700/50"
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* AI Calculate Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleCalculateMealWithAi()}
+                    disabled={!aiMealText.trim() || isCalculatingAi}
+                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-lime-500 hover:from-emerald-600 hover:to-lime-600 text-slate-950 font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-98 transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <Sparkles className={`w-4 h-4 ${isCalculatingAi ? 'animate-spin' : ''}`} />
+                    <span>
+                      {isCalculatingAi
+                        ? 'Calculating Nutrition with Gemini AI...'
+                        : '✨ Calculate Nutrition with AI'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* AI Calculated Results Display */}
+                {ingredients.length > 0 && (
+                  <div className="p-4 sm:p-5 rounded-3xl clay-card space-y-4 border border-slate-200/60 dark:border-slate-700/60">
+                    {/* Meal Title & Insight */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          Calculated {mealType === 'snack' ? 'Snack' : mealType} Meal
+                        </span>
+                        {aiModelUsed && (
+                          <span className="text-[9px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                            {aiModelUsed}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={mealName}
+                        onChange={(e) => setMealName(e.target.value)}
+                        placeholder="Meal Title"
+                        className="w-full bg-transparent font-heading font-black text-base sm:text-lg text-clay-text dark:text-white focus:outline-none border-b border-dashed border-slate-300 dark:border-slate-700 pb-1"
+                      />
+                      {aiInsight && (
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                          <span>{aiInsight}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Macro Summary Grid */}
+                    <div className="grid grid-cols-5 gap-2 text-center">
+                      <div className="clay-sunken p-2 rounded-2xl bg-amber-500/5">
+                        <span className="text-[10px] font-bold text-amber-500 block mb-0.5 flex items-center justify-center gap-0.5">
+                          <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
+                          <span>Calories</span>
+                        </span>
+                        <span className="text-sm sm:text-base font-mono font-black text-clay-text dark:text-white">
+                          {totalCalories}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-bold">kcal</span>
+                      </div>
+
+                      <div className="clay-sunken p-2 rounded-2xl bg-cyan-500/5">
+                        <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 block mb-0.5">
+                          Protein
+                        </span>
+                        <span className="text-sm sm:text-base font-mono font-black text-cyan-600 dark:text-cyan-400">
+                          {totalProtein}g
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-bold">muscle</span>
+                      </div>
+
+                      <div className="clay-sunken p-2 rounded-2xl bg-amber-500/5">
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 block mb-0.5">
+                          Carbs
+                        </span>
+                        <span className="text-sm sm:text-base font-mono font-black text-amber-600 dark:text-amber-400">
+                          {totalCarbs}g
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-bold">energy</span>
+                      </div>
+
+                      <div className="clay-sunken p-2 rounded-2xl bg-emerald-500/5">
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                          Fiber
+                        </span>
+                        <span className="text-sm sm:text-base font-mono font-black text-emerald-600 dark:text-emerald-400">
+                          {totalFiber}g
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-bold">gut</span>
+                      </div>
+
+                      <div className="clay-sunken p-2 rounded-2xl bg-sky-500/5">
+                        <span className="text-[10px] font-bold text-sky-500 block mb-0.5">
+                          Fat
+                        </span>
+                        <span className="text-sm sm:text-base font-mono font-black text-sky-500">
+                          {totalFat}g
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-bold">essential</span>
+                      </div>
+                    </div>
+
+                    {/* Detected Items List */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-400">
+                        <span>Detected Ingredients ({ingredients.length})</span>
+                        <span>Adjust portion / calories</span>
+                      </div>
+                      {ingredients.map((ing) => (
+                        <div
+                          key={ing.id}
+                          className="p-3 rounded-2xl clay-sunken flex items-center justify-between gap-2 text-xs"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-heading font-black text-clay-text dark:text-white block truncate">
+                              {ing.name}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-400 font-mono block">
+                              {ing.quantity}{ing.unit} • {ing.protein}g P • {ing.carbs}g C • {ing.fiber}g Fiber • {ing.fat}g F
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleAdjustIngredientCalories(ing.id, -20)}
+                              className="w-6 h-6 rounded-lg clay-pebble flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white active:scale-90"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="font-mono font-black text-clay-coral-dark dark:text-clay-coral text-xs w-14 text-center">
+                              {ing.calories} kcal
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleAdjustIngredientCalories(ing.id, +20)}
+                              className="w-6 h-6 rounded-lg clay-pebble flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white active:scale-90"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveIngredient(ing.id)}
+                              className="w-6 h-6 rounded-lg clay-pebble text-rose-500 hover:text-rose-700 flex items-center justify-center active:scale-90 ml-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Big Save Button */}
+                    <button
+                      type="button"
+                      onClick={handleSaveMealNow}
+                      className="w-full py-3.5 px-4 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-lime-400 dark:text-slate-950 font-heading font-black text-sm flex items-center justify-center gap-2.5 active:scale-98 transition shadow-lg cursor-pointer"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-lime-400 text-slate-950 dark:bg-slate-950 dark:text-lime-400 flex items-center justify-center font-black shadow-sm">
+                        <Check className="w-3.5 h-3.5 stroke-[3.5]" />
+                      </div>
+                      <span>
+                        Save & Log to {mealType === 'snack' ? 'SNACKS & DRINKS' : mealType.toUpperCase()} ({totalCalories} kcal)
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* TAB 1: ADD MY OWN FOOD & QUANTITY BUILDER */}
             {tab === 'manual' && (

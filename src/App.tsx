@@ -58,6 +58,7 @@ export function App() {
           setProfile(cloudData.profile);
           setActivities(cloudData.activities || []);
           setMeals((cloudData.meals || []).filter((m) => m.date === todayStr));
+          setAllMeals(cloudData.meals || StorageService.getMeals());
           setGymSessions(cloudData.gymSessions || []);
           setWeights(cloudData.weights || []);
           setWorkoutPlan(cloudData.workoutPlan || null);
@@ -74,6 +75,7 @@ export function App() {
           setProfile(cloudData.profile);
           setActivities(cloudData.activities || []);
           setMeals((cloudData.meals || []).filter((m) => m.date === todayStr));
+          setAllMeals(cloudData.meals || StorageService.getMeals());
           setGymSessions(cloudData.gymSessions || []);
           setWeights(cloudData.weights || []);
           setWorkoutPlan(cloudData.workoutPlan || null);
@@ -134,6 +136,7 @@ export function App() {
   const [gymSessions, setGymSessions] = useState<GymWorkoutSession[]>(() => StorageService.getGymSessions());
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(() => StorageService.getWorkoutPlan());
   const [meals, setMeals] = useState<MealItem[]>(() => StorageService.getMeals(todayStr));
+  const [allMeals, setAllMeals] = useState<MealItem[]>(() => StorageService.getMeals());
   const [weights, setWeights] = useState<WeightRecord[]>(() => StorageService.getWeightRecords());
   const [waterMl, setWaterMl] = useState<number>(() => StorageService.getWaterLog(todayStr));
   const [badges, setBadges] = useState<MilestoneBadge[]>(() => StorageService.getBadges());
@@ -204,6 +207,7 @@ export function App() {
   const handleSaveMeal = (meal: MealItem) => {
     StorageService.saveMeal(meal);
     setMeals(StorageService.getMeals(todayStr));
+    setAllMeals(StorageService.getMeals());
     setBadges(StorageService.getBadges());
     syncToCloud();
   };
@@ -211,12 +215,14 @@ export function App() {
   const handleDeleteMeal = (id: string) => {
     StorageService.deleteMeal(id);
     setMeals(StorageService.getMeals(todayStr));
+    setAllMeals(StorageService.getMeals());
     syncToCloud();
   };
 
   const handleToggleMealFavorite = (id: string) => {
     StorageService.toggleMealFavorite(id);
     setMeals(StorageService.getMeals(todayStr));
+    setAllMeals(StorageService.getMeals());
     syncToCloud();
   };
 
@@ -358,6 +364,7 @@ export function App() {
               profile={profile}
               calculations={calculations}
               meals={meals}
+              allMeals={allMeals}
               activities={activities}
               gymSessions={gymSessions}
               workoutPlan={workoutPlan}
@@ -482,6 +489,9 @@ export function App() {
           {currentTab === 'food' && (
             <FoodTracker
               meals={meals}
+              allMeals={allMeals}
+              allActivities={activities}
+              allGymSessions={gymSessions}
               profile={profile}
               calculations={calculations}
               burnedCaloriesToday={burnedToday}

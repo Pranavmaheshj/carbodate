@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Flame,
@@ -29,12 +29,14 @@ import {
 import { CalorieRing } from '../common/CalorieRing';
 import { TodayWorkoutWidget } from './TodayWorkoutWidget';
 import { WeightLogModal } from './WeightLogModal';
-import { formatDuration } from '../../services/calculations';
+import { WeeklyDeficitWidget } from './WeeklyDeficitWidget';
+import { formatDuration, calculateWeeklyDeficitSummary } from '../../services/calculations';
 
 interface DashboardViewProps {
   profile: UserProfile;
   calculations: BodyCalculations;
   meals: MealItem[];
+  allMeals?: MealItem[];
   activities: ActivityRecord[];
   gymSessions: GymWorkoutSession[];
   workoutPlan: WorkoutPlan | null;
@@ -52,6 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   profile,
   calculations,
   meals,
+  allMeals,
   activities,
   gymSessions,
   workoutPlan,
@@ -83,6 +86,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const targetCals = calculations.dailyCalorieTarget;
   const netCalories = eatenCaloriesToday - totalCaloriesBurnedToday;
   const deficitToday = calculations.tdee - netCalories;
+
+  // Weekly Deficit & Rollover Banking Summary
+  const weeklySummary = useMemo(() => {
+    return calculateWeeklyDeficitSummary(
+      calculations,
+      allMeals && allMeals.length > 0 ? allMeals : meals,
+      activities,
+      gymSessions
+    );
+  }, [calculations, allMeals, meals, activities, gymSessions]);
 
   // Most recent weight
   const latestWeight =
@@ -284,6 +297,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 2.5 WEEKLY CALORIE DEFICIT & ROLLOVER ENGINE */}
+      <WeeklyDeficitWidget weeklySummary={weeklySummary} />
 
       {/* 3. TODAY'S SCHEDULED WORKOUT (Lilac Bento Tile) */}
       <TodayWorkoutWidget

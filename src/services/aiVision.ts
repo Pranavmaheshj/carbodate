@@ -21,8 +21,8 @@ const VISION_MODELS = [
   'gemini-flash-lite-latest',
   'gemini-3.5-flash-lite',
   'gemini-3-flash-preview',
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
+  'gemini-flash-latest',
+  'gemini-3.8-flash',
 ];
 
 /**
@@ -184,7 +184,7 @@ Return JSON only:
         // Try active models in waterfall order with AbortController timeout
         for (const model of VISION_MODELS) {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 7500);
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
 
           try {
             const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -455,5 +455,293 @@ Return JSON only:
     source: 'local_heuristic',
     modelUsed: 'heuristic-engine',
     cuisineContext,
+  };
+}
+
+export interface AiMealTextResult {
+  mealTitle: string;
+  items: DetectedFoodCandidate[];
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFiber: number;
+  totalFat: number;
+  insight: string;
+  source: 'gemini' | 'local_heuristic';
+  modelUsed?: string;
+}
+
+/**
+ * Calculates complete meal nutrition from a user's natural language meal description (e.g. for dinner, lunch, etc.)
+ * using Google Gemini AI, with instant decomposition into calories, protein, carbs, fiber, and fat.
+ */
+export async function calculateMealTextWithAi(
+  mealText: string,
+  mealType: string = 'dinner',
+  userCuisine?: string,
+  userApiKey?: string
+): Promise<AiMealTextResult> {
+  const envKey = (import.meta.env.VITE_GEMINI_API_KEY as string)?.trim();
+  const storedKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_gemini_api_key') : null)?.trim();
+  const passedKey = userApiKey?.trim();
+  const cuisineContext = (userCuisine || (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_cuisine_context') : null) || 'Indian / Regional & Global').trim();
+
+  const candidateKeys = [passedKey, storedKey, envKey].filter(
+    (k): k is string => Boolean(k && k.length > 8 && k !== 'your-gemini-api-key-here')
+  );
+  const keysToTry = Array.from(new Set(candidateKeys));
+
+  const prompt = `You are a certified sports nutritionist and dietary analyst for the Carbodate fitness app.
+The user described what they ate for ${mealType}: "${mealText}".
+Cuisine context: ${cuisineContext}.
+
+Rules:
+1. Deconstruct the user's description into every distinct food and drink item mentioned or implied.
+2. Estimate realistic portions (household serving and grams) based on standard culinary servings.
+3. Calculate accurate calories, protein (g), carbohydrates (g), fiber (g), and fat (g) using USDA and regional nutritional standards.
+4. Output STRICT JSON conforming to this schema (no markdown, no extra chatter):
+{
+  "mealTitle": "Clear descriptive name for this ${mealType}",
+  "items": [
+    {
+      "name": "Food item name",
+      "portion": "e.g. 2 pieces or 1 bowl",
+      "grams": 120,
+      "calories": 240,
+      "protein": 7.5,
+      "carbs": 48.0,
+      "fiber": 6.0,
+      "fat": 2.0,
+      "confidence": 0.98,
+      "alternatives": []
+    }
+  ],
+  "totalCalories": 240,
+  "totalProtein": 7.5,
+  "totalCarbs": 48.0,
+  "totalFiber": 6.0,
+  "totalFat": 2.0,
+  "insight": "1-sentence nutritional insight on the balance of this ${mealType}."
+}`;
+
+  if (keysToTry.length > 0) {
+    for (const apiKey of keysToTry) {
+      for (const model of VISION_MODELS) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 7500);
+
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.1,
+                response_mime_type: 'application/json',
+              },
+            }),
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            continue;
+          }
+
+          const data = await response.json();
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+          if (rawText) {
+            const parsed = extractAndParseJson(rawText);
+            const rawItems = parsed.items || [];
+
+            if (Array.isArray(rawItems) && rawItems.length > 0) {
+              const items: DetectedFoodCandidate[] = rawItems.map((item: any) => ({
+                name: String(item.name || 'Food Item'),
+                portion: String(item.portion || (item.grams ? `${item.grams}g` : '1 serving')),
+                grams: typeof item.grams === 'number' && item.grams > 0 ? item.grams : undefined,
+                alternatives: Array.isArray(item.alternatives) ? item.alternatives.map(String).filter(Boolean) : [],
+                calories: Math.max(0, Math.round(Number(item.calories) || 0)),
+                protein: Math.max(0, Math.round((Number(item.protein) || 0) * 10) / 10),
+                carbs: Math.max(0, Math.round((Number(item.carbs) || 0) * 10) / 10),
+                fat: Math.max(0, Math.round((Number(item.fat) || 0) * 10) / 10),
+                fiber: Math.max(0, Math.round((Number(item.fiber) || 0) * 10) / 10),
+                confidence: Math.min(1, Math.max(0.5, Number(item.confidence) || 0.95)),
+              }));
+
+              const totalCalories = items.reduce((s, i) => s + i.calories, 0);
+              const totalProtein = items.reduce((s, i) => s + i.protein, 0);
+              const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+              const totalFat = items.reduce((s, i) => s + i.fat, 0);
+              const totalFiber = items.reduce((s, i) => s + (i.fiber || 0), 0);
+
+              return {
+                mealTitle: parsed.mealTitle || `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} Meal`,
+                items,
+                totalCalories: Math.round(totalCalories),
+                totalProtein: Math.round(totalProtein * 10) / 10,
+                totalCarbs: Math.round(totalCarbs * 10) / 10,
+                totalFat: Math.round(totalFat * 10) / 10,
+                totalFiber: Math.round(totalFiber * 10) / 10,
+                insight: parsed.insight || `Calculated ${items.length} item(s) with Google Gemini AI.`,
+                source: 'gemini',
+                modelUsed: model,
+              };
+            }
+          }
+        } catch (e) {
+          clearTimeout(timeoutId);
+        }
+      }
+    }
+  }
+
+  // Fallback: Smart local heuristic parsing using delimiter tokenization
+  const tokens = mealText
+    .split(/[,+;&\n]|(?:\band\b)|(?:\bwith\b)/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 1);
+
+  const fallbackItems: DetectedFoodCandidate[] = tokens.map((token) => {
+    const lower = token.toLowerCase();
+    if (lower.includes('roti') || lower.includes('chapati')) {
+      const countMatch = lower.match(/(\d+)/);
+      const count = countMatch ? parseInt(countMatch[1]) : 2;
+      return {
+        name: `${count} Rotis`,
+        portion: `${count} pieces`,
+        grams: count * 40,
+        calories: count * 105,
+        protein: count * 3.0,
+        carbs: count * 19.0,
+        fiber: count * 2.5,
+        fat: count * 1.5,
+        confidence: 0.9,
+      };
+    }
+    if (lower.includes('rice')) {
+      return {
+        name: 'Cooked Rice',
+        portion: '1 bowl (150g)',
+        grams: 150,
+        calories: 195,
+        protein: 4.0,
+        carbs: 43.0,
+        fiber: 0.8,
+        fat: 0.4,
+        confidence: 0.9,
+      };
+    }
+    if (lower.includes('dal') || lower.includes('dhal')) {
+      return {
+        name: 'Dal / Lentil Curry',
+        portion: '1 bowl (180g)',
+        grams: 180,
+        calories: 175,
+        protein: 8.5,
+        carbs: 24.0,
+        fiber: 5.5,
+        fat: 4.0,
+        confidence: 0.88,
+      };
+    }
+    if (lower.includes('paneer')) {
+      return {
+        name: 'Paneer Curry',
+        portion: '1 serving (180g)',
+        grams: 180,
+        calories: 360,
+        protein: 14.0,
+        carbs: 10.0,
+        fiber: 2.0,
+        fat: 30.0,
+        confidence: 0.88,
+      };
+    }
+    if (lower.includes('chicken')) {
+      return {
+        name: 'Chicken Breast / Curry',
+        portion: '150g',
+        grams: 150,
+        calories: 240,
+        protein: 38.0,
+        carbs: 4.0,
+        fiber: 0.5,
+        fat: 7.0,
+        confidence: 0.9,
+      };
+    }
+    if (lower.includes('dosa')) {
+      return {
+        name: 'Masala Dosa',
+        portion: '1 large',
+        grams: 150,
+        calories: 250,
+        protein: 5.0,
+        carbs: 35.0,
+        fiber: 2.5,
+        fat: 10.0,
+        confidence: 0.9,
+      };
+    }
+    if (lower.includes('salad')) {
+      return {
+        name: 'Fresh Salad',
+        portion: '1 bowl (100g)',
+        grams: 100,
+        calories: 25,
+        protein: 1.0,
+        carbs: 5.0,
+        fiber: 2.0,
+        fat: 0.2,
+        confidence: 0.9,
+      };
+    }
+    return {
+      name: token.charAt(0).toUpperCase() + token.slice(1),
+      portion: '1 serving',
+      grams: 100,
+      calories: 150,
+      protein: 5.0,
+      carbs: 20.0,
+      fiber: 2.0,
+      fat: 5.0,
+      confidence: 0.75,
+    };
+  });
+
+  const validItems = fallbackItems.length > 0 ? fallbackItems : [
+    {
+      name: mealText.charAt(0).toUpperCase() + mealText.slice(1),
+      portion: '1 serving',
+      grams: 250,
+      calories: 450,
+      protein: 18.0,
+      carbs: 55.0,
+      fiber: 6.0,
+      fat: 14.0,
+      confidence: 0.8,
+    }
+  ];
+
+  const totalCalories = validItems.reduce((s, i) => s + i.calories, 0);
+  const totalProtein = validItems.reduce((s, i) => s + i.protein, 0);
+  const totalCarbs = validItems.reduce((s, i) => s + i.carbs, 0);
+  const totalFat = validItems.reduce((s, i) => s + i.fat, 0);
+  const totalFiber = validItems.reduce((s, i) => s + (i.fiber || 0), 0);
+
+  return {
+    mealTitle: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)}: ${mealText.slice(0, 35)}`,
+    items: validItems,
+    totalCalories: Math.round(totalCalories),
+    totalProtein: Math.round(totalProtein * 10) / 10,
+    totalCarbs: Math.round(totalCarbs * 10) / 10,
+    totalFat: Math.round(totalFat * 10) / 10,
+    totalFiber: Math.round(totalFiber * 10) / 10,
+    insight: `Estimated nutrition for ${mealText}.`,
+    source: 'local_heuristic',
   };
 }

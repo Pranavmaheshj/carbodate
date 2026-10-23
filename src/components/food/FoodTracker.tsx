@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   UtensilsCrossed,
@@ -11,16 +11,30 @@ import {
   Info,
   Calendar,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Clock,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
-import { MealItem, MealType, UserProfile, BodyCalculations } from '../../types';
+import {
+  MealItem,
+  MealType,
+  UserProfile,
+  BodyCalculations,
+  ActivityRecord,
+  GymWorkoutSession,
+} from '../../types';
 import { CalorieRing } from '../common/CalorieRing';
 import { PhotoCalorieEstimator } from './PhotoCalorieEstimator';
 import { AddFoodModal } from './AddFoodModal';
 import { WaterTracker } from './WaterTracker';
+import { calculateWeeklyDeficitSummary } from '../../services/calculations';
 
 interface FoodTrackerProps {
   meals: MealItem[];
+  allMeals?: MealItem[];
+  allActivities?: ActivityRecord[];
+  allGymSessions?: GymWorkoutSession[];
   profile: UserProfile;
   calculations: BodyCalculations;
   burnedCaloriesToday: number;
@@ -34,6 +48,9 @@ interface FoodTrackerProps {
 
 export const FoodTracker: React.FC<FoodTrackerProps> = ({
   meals,
+  allMeals,
+  allActivities,
+  allGymSessions,
   profile,
   calculations,
   burnedCaloriesToday,
@@ -47,6 +64,17 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isAddFoodModalOpen, setIsAddFoodModalOpen] = useState(false);
   const [activeMealTypeForAdd, setActiveMealTypeForAdd] = useState<MealType>('lunch');
+  const [useWeeklyRolloverTarget, setUseWeeklyRolloverTarget] = useState<boolean>(false);
+
+  // Weekly Deficit Summary & Rollover Engine
+  const weeklyDeficit = useMemo(() => {
+    return calculateWeeklyDeficitSummary(
+      calculations,
+      allMeals && allMeals.length > 0 ? allMeals : meals,
+      allActivities || [],
+      allGymSessions || []
+    );
+  }, [calculations, allMeals, meals, allActivities, allGymSessions]);
 
   // Today's total consumed calories and macros
   const totalEaten = meals.reduce((sum, m) => sum + (m.calories || 0), 0);
@@ -55,8 +83,12 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
   const totalFiber = Math.round(meals.reduce((sum, m) => sum + (m.fiber || 0), 0) * 10) / 10;
   const totalFat = Math.round(meals.reduce((sum, m) => sum + (m.fat || 0), 0) * 10) / 10;
 
-  // Recommended targets
-  const targetCals = calculations.dailyCalorieTarget;
+  // Recommended targets (standard vs weekly rollover dynamic target)
+  const standardTargetCals = calculations.dailyCalorieTarget;
+  const targetCals = useWeeklyRolloverTarget && weeklyDeficit.hasShortfall
+    ? weeklyDeficit.adjustedDailyCalorieTarget
+    : standardTargetCals;
+
   const targetProtein = Math.round((targetCals * 0.35) / 4);
   const targetCarbs = Math.round((targetCals * 0.40) / 4);
   const targetFat = Math.round((targetCals * 0.25) / 9);
@@ -106,20 +138,55 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
           {/* Macro breakdown bars & Budget description */}
           <div className="flex-1 w-full space-y-5">
             <div>
-              <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
                 <span className="clay-chip bg-clay-lime text-clay-text text-xs">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Calorie Deficit Budget</span>
                 </span>
+
+                {/* Target Switcher: Standard vs Weekly Rollover */}
+                <div className="flex items-center gap-1 p-1 rounded-xl clay-sunken">
+                  <button
+                    type="button"
+                    onClick={() => setUseWeeklyRolloverTarget(false)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-heading font-black transition ${
+                      !useWeeklyRolloverTarget
+                        ? 'clay-btn-lime text-clay-text shadow-sm'
+                        : 'text-clay-text/60 dark:text-slate-400 hover:text-clay-text'
+                    }`}
+                  >
+                    Standard ({standardTargetCals} kcal)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUseWeeklyRolloverTarget(true)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-heading font-black transition flex items-center gap-1 ${
+                      useWeeklyRolloverTarget
+                        ? 'clay-btn-lime text-clay-text shadow-sm'
+                        : weeklyDeficit.hasShortfall
+                        ? 'text-amber-600 dark:text-amber-400 font-bold'
+                        : 'text-clay-text/60 dark:text-slate-400 hover:text-clay-text'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3 text-amber-500" />
+                    <span>Rollover ({weeklyDeficit.adjustedDailyCalorieTarget} kcal)</span>
+                    {weeklyDeficit.hasShortfall && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-0.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between flex-wrap gap-1">
+                <h3 className="text-2xl sm:text-3xl font-heading font-black text-clay-text dark:text-white tracking-tight mt-1">
+                  {calculations.dailyDeficitOrSurplus < 0
+                    ? `Deficit Target: ${Math.abs(calculations.dailyDeficitOrSurplus)} kcal/day`
+                    : 'Maintenance / Surplus Target'}
+                </h3>
                 <span className="text-xs text-clay-text/60 dark:text-slate-400 font-mono">
                   {targetCals} - {totalEaten} + {burnedCaloriesToday} = <strong className="text-clay-text dark:text-white font-black">{Math.max(0, targetCals + burnedCaloriesToday - totalEaten)} kcal left</strong>
                 </span>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-heading font-black text-clay-text dark:text-white tracking-tight mt-1">
-                {calculations.dailyDeficitOrSurplus < 0
-                  ? `Deficit Target: ${Math.abs(calculations.dailyDeficitOrSurplus)} kcal/day`
-                  : 'Maintenance / Surplus Target'}
-              </h3>
             </div>
 
             {/* Macro Bars in Sunken Clay Tracks */}
@@ -187,6 +254,37 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Weekly Deficit Rollover Insight Banner */}
+            <div
+              className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
+                weeklyDeficit.hasShortfall
+                  ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-300/40 text-amber-900 dark:text-amber-200'
+                  : weeklyDeficit.bankedCalories > 0
+                  ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300/40 text-emerald-900 dark:text-emerald-200'
+                  : 'clay-sunken text-slate-400'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                {weeklyDeficit.hasShortfall ? (
+                  <Clock className="w-4 h-4 text-amber-500 flex-shrink-0 animate-pulse" />
+                ) : weeklyDeficit.bankedCalories > 0 ? (
+                  <Sparkles className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                )}
+                <span className="truncate font-sans font-bold text-[11px]">
+                  {weeklyDeficit.hasShortfall
+                    ? `Weekly Rollover: ${weeklyDeficit.shortfallCalories} kcal shortfall from earlier this week is rolled over. You can complete it today or across remaining days!`
+                    : weeklyDeficit.bankedCalories > 0
+                    ? `Banked Buffer: +${weeklyDeficit.bankedCalories} kcal banked! You can eat up to ${standardTargetCals + weeklyDeficit.bankedCalories} kcal on any day this week without slowing fat loss.`
+                    : `Weekly Deficit On Track: ${weeklyDeficit.totalDeficitAchievedSoFar} / ${weeklyDeficit.weeklyDeficitTarget} kcal achieved so far.`}
+                </span>
+              </div>
+              <span className="font-heading font-black text-[11px] whitespace-nowrap flex-shrink-0 font-mono">
+                {weeklyDeficit.weeklyProgressPercent}% of week
+              </span>
             </div>
           </div>
         </div>

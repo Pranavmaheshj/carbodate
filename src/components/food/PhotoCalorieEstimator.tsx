@@ -189,14 +189,15 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
 
     stopCameraStream();
     setImagePreview(rawDataUrl);
+    setMealHint(''); // Clear preset hint for fresh photo capture
 
     try {
       const { base64, mimeType } = await compressImageForVision(rawDataUrl);
       const compressedUrl = `data:${mimeType};base64,${base64}`;
       setImagePreview(compressedUrl);
-      runScan(compressedUrl);
+      runScan(compressedUrl, '');
     } catch {
-      runScan(rawDataUrl);
+      runScan(rawDataUrl, '');
     }
   };
 
@@ -204,6 +205,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       stopCameraStream();
+      setMealHint(''); // Clear preset hint for fresh uploaded image
       const reader = new FileReader();
       reader.onload = async () => {
         const rawBase64 = reader.result as string;
@@ -212,9 +214,9 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
           const { base64, mimeType } = await compressImageForVision(rawBase64);
           const compressedUrl = `data:${mimeType};base64,${base64}`;
           setImagePreview(compressedUrl);
-          runScan(compressedUrl);
+          runScan(compressedUrl, '');
         } catch {
-          runScan(rawBase64);
+          runScan(rawBase64, '');
         }
       };
       reader.readAsDataURL(file);
@@ -409,7 +411,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                         }
                       } catch {}
                     }}
-                    placeholder="Paste AI Studio Key: AIzaSy... (or leave blank for cloud default)"
+                    placeholder="Paste a Gemini API key (optional; blank uses local analysis)"
                     className="clay-input flex-1 px-3 py-2 text-xs font-mono rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                   />
                   {customApiKey && (

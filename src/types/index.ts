@@ -217,3 +217,42 @@ export interface DetectedFoodCandidate {
   confidence: number;
 }
 
+export interface DayDeficitRecord {
+  dateStr: string;
+  dayName: string; // 'Mon', 'Tue', etc.
+  dayIndex: number; // 0 for Mon ... 6 for Sun
+  isPast: boolean;
+  isToday: boolean;
+  isFuture: boolean;
+  eaten: number;
+  burned: number;
+  netCalories: number;
+  achievedDeficit: number;
+  targetDeficit: number;
+  status: 'completed' | 'shortfall' | 'surplus_banked' | 'pending';
+  shortfallOrSurplus: number; // achievedDeficit - targetDeficit
+}
+
+export interface WeeklyDeficitSummary {
+  weekStartDate: string;
+  weekEndDate: string;
+  days: DayDeficitRecord[];
+  dailyDeficitTarget: number;
+  weeklyDeficitTarget: number;
+  totalDeficitAchievedSoFar: number;
+  weeklyProgressPercent: number;
+  remainingDeficitNeeded: number;
+  elapsedDaysCount: number;
+  remainingDaysCount: number; // days remaining in week (including today if pending)
+  futureDaysCount: number; // days strictly after today
+  currentWeeklyBalance: number; // totalDeficitAchievedSoFar - (dailyDeficitTarget * elapsedDaysCount)
+  hasShortfall: boolean;
+  shortfallCalories: number;
+  bankedCalories: number;
+  adjustedDailyCalorieTarget: number;
+  standardDailyCalorieTarget: number;
+  singleDayCatchupDeficit: number;
+  safetyFloorEnforced: boolean;
+  recommendedCatchupAdvice: string;
+}
+
