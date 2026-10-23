@@ -17,6 +17,7 @@ import {
   Info,
   Edit2,
   CheckCircle2,
+  Zap,
 } from 'lucide-react';
 import { MealItem, MealType } from '../../types';
 import { FOOD_DATABASE, FoodItemTemplate } from '../../data/foodDatabase';
@@ -54,59 +55,29 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
 }) => {
   const [tab, setTab] = useState<'manual' | 'search' | 'favorites'>('manual');
   const [mealType, setMealType] = useState<MealType>(defaultMealType);
-  const [mealName, setMealName] = useState<string>('Oats & Banana Breakfast Bowl');
+  const [mealName, setMealName] = useState<string>('');
 
-  // Multi-item meal builder state with realistic starting defaults
-  const [ingredients, setIngredients] = useState<MealIngredient[]>([
-    {
-      id: 'ing_1',
-      name: 'High Protein Oats',
-      quantity: 50,
-      unit: 'g',
-      calories: 205,
-      protein: 12.25,
-      carbs: 31.0,
-      fiber: 5.5,
-      fat: 3.8,
-    },
-    {
-      id: 'ing_2',
-      name: 'Fresh Banana',
-      quantity: 1,
-      unit: 'medium',
-      calories: 105,
-      protein: 1.3,
-      carbs: 27.0,
-      fiber: 3.1,
-      fat: 0.3,
-    },
-    {
-      id: 'ing_3',
-      name: 'Natural Peanut Butter',
-      quantity: 20,
-      unit: 'g',
-      calories: 120,
-      protein: 5.5,
-      carbs: 4.0,
-      fiber: 1.6,
-      fat: 10.0,
-    },
-  ]);
+  // Starts completely clean & empty as requested (no pre-set items!)
+  const [ingredients, setIngredients] = useState<MealIngredient[]>([]);
 
-  // Form inputs for adding a new item to the meal builder
-  const [inputFoodName, setInputFoodName] = useState<string>('High Protein Oats');
-  const [inputQuantity, setInputQuantity] = useState<number>(50);
+  // Form inputs for current food item - starts completely empty
+  const [inputFoodName, setInputFoodName] = useState<string>('');
+  const [inputQuantity, setInputQuantity] = useState<number>(100);
   const [inputUnit, setInputUnit] = useState<string>('g');
-  const [inputCalories, setInputCalories] = useState<number>(205);
-  const [inputProtein, setInputProtein] = useState<number>(12.25);
-  const [inputCarbs, setInputCarbs] = useState<number>(31.0);
-  const [inputFiber, setInputFiber] = useState<number>(5.5);
-  const [inputFat, setInputFat] = useState<number>(3.8);
+  const [inputCalories, setInputCalories] = useState<number>(0);
+  const [inputProtein, setInputProtein] = useState<number>(0);
+  const [inputCarbs, setInputCarbs] = useState<number>(0);
+  const [inputFiber, setInputFiber] = useState<number>(0);
+  const [inputFat, setInputFat] = useState<number>(0);
+
+  // Auto-calculated state tracking
+  const [autoMatchedTemplate, setAutoMatchedTemplate] = useState<FoodItemTemplate | null>(null);
+  const [userHasEditedMacros, setUserHasEditedMacros] = useState<boolean>(false);
 
   // In-line editing state for existing ingredients
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Search state
+  // Search tab state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [selectedTemplate, setSelectedTemplate] = useState<FoodItemTemplate | null>(null);
@@ -127,6 +98,104 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
   const totalFiber = Math.round(ingredients.reduce((sum, item) => sum + item.fiber, 0) * 10) / 10;
   const totalFat = Math.round(ingredients.reduce((sum, item) => sum + item.fat, 0) * 10) / 10;
 
+  // Intelligent real-time food search & matching
+  const findBestFoodMatch = (query: string): FoodItemTemplate | null => {
+    const q = query.trim().toLowerCase();
+    if (!q || q.length < 2) return null;
+
+    // 1. Exact match
+    const exact = FOOD_DATABASE.find((f) => f.name.toLowerCase() === q);
+    if (exact) return exact;
+
+    // 2. Starts with query
+    const startsWith = FOOD_DATABASE.find((f) => f.name.toLowerCase().startsWith(q));
+    if (startsWith) return startsWith;
+
+    // 3. Substring match
+    const contains = FOOD_DATABASE.find((f) => f.name.toLowerCase().includes(q));
+    if (contains) return contains;
+
+    // 4. Word boundary match (e.g. typing "oat" matches "Rolled Oats (Dry)")
+    const wordMatch = FOOD_DATABASE.find((f) => {
+      const words = f.name.toLowerCase().split(/[\s,()/-]+/);
+      return words.some((w) => w.startsWith(q) || q.startsWith(w));
+    });
+    if (wordMatch) return wordMatch;
+
+    return null;
+  };
+
+  // Multiple candidates for suggestions pill row
+  const getSuggestions = (query: string): FoodItemTemplate[] => {
+    const q = query.trim().toLowerCase();
+    if (!q || q.length < 2) return [];
+    return FOOD_DATABASE.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 4);
+  };
+
+  // Called when user types into the Food Name field
+  const handleFoodNameChange = (name: string) => {
+    setInputFoodName(name);
+
+    if (!name.trim()) {
+      setAutoMatchedTemplate(null);
+      setUserHasEditedMacros(false);
+      setInputCalories(0);
+      setInputProtein(0);
+      setInputCarbs(0);
+      setInputFiber(0);
+      setInputFat(0);
+      return;
+    }
+
+    // Auto-calculate nutrition from database match
+    const match = findBestFoodMatch(name);
+    if (match && match.baseWeightGrams > 0) {
+      setAutoMatchedTemplate(match);
+      setUserHasEditedMacros(false);
+      const ratio = inputQuantity / match.baseWeightGrams;
+      setInputCalories(Math.round(match.calories * ratio));
+      setInputProtein(Math.round(match.protein * ratio * 100) / 100);
+      setInputCarbs(Math.round(match.carbs * ratio * 10) / 10);
+      setInputFiber(Math.round(match.fiber * ratio * 10) / 10);
+      setInputFat(Math.round(match.fat * ratio * 10) / 10);
+    } else {
+      setAutoMatchedTemplate(null);
+    }
+  };
+
+  // Called when user selects a suggested food match
+  const handleSelectSuggestedFood = (food: FoodItemTemplate) => {
+    setInputFoodName(food.name);
+    setAutoMatchedTemplate(food);
+    setUserHasEditedMacros(false);
+    setInputUnit('g');
+    const targetQty = inputQuantity > 0 ? inputQuantity : food.baseWeightGrams;
+    setInputQuantity(targetQty);
+
+    const ratio = targetQty / food.baseWeightGrams;
+    setInputCalories(Math.round(food.calories * ratio));
+    setInputProtein(Math.round(food.protein * ratio * 100) / 100);
+    setInputCarbs(Math.round(food.carbs * ratio * 10) / 10);
+    setInputFiber(Math.round(food.fiber * ratio * 10) / 10);
+    setInputFat(Math.round(food.fat * ratio * 10) / 10);
+  };
+
+  // Recalculate input macros when quantity changes for a known item
+  const handleQuantityChange = (newQty: number) => {
+    const safeQty = Math.max(1, newQty);
+    setInputQuantity(safeQty);
+
+    // If we have an auto-matched food, scale the nutrition proportionally
+    if (autoMatchedTemplate && autoMatchedTemplate.baseWeightGrams > 0) {
+      const ratio = safeQty / autoMatchedTemplate.baseWeightGrams;
+      setInputCalories(Math.round(autoMatchedTemplate.calories * ratio));
+      setInputProtein(Math.round(autoMatchedTemplate.protein * ratio * 100) / 100);
+      setInputCarbs(Math.round(autoMatchedTemplate.carbs * ratio * 10) / 10);
+      setInputFiber(Math.round(autoMatchedTemplate.fiber * ratio * 10) / 10);
+      setInputFat(Math.round(autoMatchedTemplate.fat * ratio * 10) / 10);
+    }
+  };
+
   // Add ingredient into meal builder
   const handleAddIngredient = () => {
     if (!inputFoodName.trim()) return;
@@ -145,15 +214,44 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
 
     setIngredients([...ingredients, newIng]);
     setInputFoodName('');
+    setAutoMatchedTemplate(null);
+    setUserHasEditedMacros(false);
     setInputQuantity(100);
-    setInputCalories(150);
-    setInputProtein(10);
-    setInputCarbs(18);
-    setInputFiber(3);
-    setInputFat(4);
+    setInputCalories(0);
+    setInputProtein(0);
+    setInputCarbs(0);
+    setInputFiber(0);
+    setInputFat(0);
   };
 
-  // Remove an ingredient
+  // Quick 1-tap direct log without building a multi-item list
+  const handleLogSingleFoodDirectly = () => {
+    if (!inputFoodName.trim()) return;
+
+    const meal: MealItem = {
+      id: `meal_${Date.now()}`,
+      userId,
+      date: new Date().toISOString().split('T')[0],
+      mealType,
+      name: inputFoodName.trim(),
+      portion: `${inputQuantity}${inputUnit}`,
+      calories: Math.max(0, inputCalories),
+      protein: Math.max(0, inputProtein),
+      carbs: Math.max(0, inputCarbs),
+      fiber: Math.max(0, inputFiber),
+      fat: Math.max(0, inputFat),
+      isFavorite: false,
+      detectedIngredients: [
+        `${inputFoodName.trim()} (${inputQuantity}${inputUnit}): ${inputCalories} kcal, ${inputProtein}g P, ${inputCarbs}g C, ${inputFiber}g Fiber, ${inputFat}g F`,
+      ],
+      createdAt: new Date().toISOString(),
+    };
+
+    onSaveMeal(meal);
+    onClose();
+  };
+
+  // Remove an ingredient from builder
   const handleRemoveIngredient = (id: string) => {
     setIngredients(ingredients.filter((item) => item.id !== id));
   };
@@ -174,34 +272,6 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     );
   };
 
-  // Quick preset chips that auto-calculate macros based on quantity
-  const handlePickQuickPreset = (template: FoodItemTemplate) => {
-    setInputFoodName(template.name);
-    setInputUnit('g');
-    setInputQuantity(template.baseWeightGrams);
-    setInputCalories(template.calories);
-    setInputProtein(template.protein);
-    setInputCarbs(template.carbs);
-    setInputFiber(template.fiber);
-    setInputFat(template.fat);
-  };
-
-  // Recalculate input macros when quantity changes for a known database item
-  const handleQuantityChange = (newQty: number) => {
-    setInputQuantity(newQty);
-    const matched = FOOD_DATABASE.find(
-      (f) => f.name.toLowerCase() === inputFoodName.trim().toLowerCase()
-    );
-    if (matched && matched.baseWeightGrams > 0) {
-      const ratio = newQty / matched.baseWeightGrams;
-      setInputCalories(Math.round(matched.calories * ratio));
-      setInputProtein(Math.round(matched.protein * ratio * 100) / 100);
-      setInputCarbs(Math.round(matched.carbs * ratio * 10) / 10);
-      setInputFiber(Math.round(matched.fiber * ratio * 10) / 10);
-      setInputFat(Math.round(matched.fat * ratio * 10) / 10);
-    }
-  };
-
   // Add item from database search into the multi-item builder
   const handleAddTemplateToBuilder = (template: FoodItemTemplate, grams: number) => {
     const ratio = grams / template.baseWeightGrams;
@@ -218,7 +288,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     };
     setIngredients([...ingredients, newIng]);
     setSelectedTemplate(null);
-    setTab('manual'); // Return to builder so user can see and edit the item!
+    setTab('manual');
   };
 
   // Save the entire composed meal to the user's daily diary
@@ -298,6 +368,8 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     onClose();
   };
 
+  const suggestions = getSuggestions(inputFoodName);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -318,7 +390,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
               <X className="w-5 h-5" />
             </button>
 
-            {/* Header - Always Fixed & Visible */}
+            {/* Header - Fixed & Fully Visible */}
             <div className="flex items-center gap-3.5 mb-4 pr-10 flex-shrink-0">
               <div className="w-12 h-12 rounded-2xl clay-card-lime text-clay-text flex items-center justify-center font-bold shadow-sm flex-shrink-0">
                 <Utensils className="w-6 h-6 stroke-[2.3]" />
@@ -328,7 +400,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                   Add Food & Exact Quantities
                 </h3>
                 <span className="text-xs font-bold text-clay-text/60 dark:text-slate-400 block">
-                  Add custom food items, edit Carbs, Fiber & Protein live, or log composed bowls
+                  Type your food to auto-calculate nutrition, customize if needed, or save as it is
                 </span>
               </div>
             </div>
@@ -396,83 +468,44 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
             {/* TAB 1: ADD MY OWN FOOD & QUANTITY BUILDER */}
             {tab === 'manual' && (
               <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                {/* Meal Title / Name */}
-                <div>
-                  <label className="block text-[11px] font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Meal / Recipe Title
-                  </label>
-                  <input
-                    type="text"
-                    value={mealName}
-                    onChange={(e) => setMealName(e.target.value)}
-                    placeholder="e.g. Oats with Banana & 20g Peanut Butter"
-                    className="clay-input w-full px-4 py-2.5 text-sm font-heading font-black text-clay-text dark:text-white rounded-2xl"
-                  />
-                </div>
-
-                {/* Quick Food Presets (Tap to fill & scale) */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-heading font-black text-clay-text/70 dark:text-slate-400 uppercase tracking-wider block">
-                      Quick Presets (Tap to auto-fill & customize):
-                    </span>
-                    {onOpenAiScan && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onClose();
-                          onOpenAiScan();
-                        }}
-                        className="text-[11px] font-heading font-bold text-clay-lime-dark dark:text-clay-lime hover:underline flex items-center gap-1"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        <span>Use AI Vision</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {FOOD_DATABASE.slice(0, 9).map((food) => (
-                      <button
-                        key={food.name}
-                        type="button"
-                        onClick={() => handlePickQuickPreset(food)}
-                        className={`px-2.5 py-1 rounded-xl clay-btn text-[11px] font-heading font-bold active:scale-95 transition ${
-                          inputFoodName.toLowerCase() === food.name.toLowerCase()
-                            ? 'clay-btn-lime text-clay-text font-black'
-                            : 'text-clay-text dark:text-slate-200'
-                        }`}
-                      >
-                        + {food.name} ({food.baseWeightGrams}g)
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Custom Food & Quantity Input Card */}
+                {/* Custom Food Input Box with Real-time Auto-Calculation */}
                 <div className="p-4 sm:p-5 rounded-3xl clay-card-flat space-y-3.5 border border-slate-200/60 dark:border-slate-700/60">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-heading font-black text-clay-text dark:text-white uppercase tracking-wider flex items-center gap-1.5">
                       <Scale className="w-4 h-4 text-clay-lime-dark dark:text-clay-lime" />
-                      <span>Custom Food & Editable Macros:</span>
+                      <span>Enter Food & Quantity:</span>
                     </span>
-                    <span className="text-[10px] text-slate-500 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                      Editable Carbs, Fiber, Protein & Fats
-                    </span>
+
+                    {/* Auto-Match & Calculation Pill */}
+                    {autoMatchedTemplate ? (
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Auto-calculated ({autoMatchedTemplate.name})</span>
+                      </span>
+                    ) : userHasEditedMacros ? (
+                      <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full">
+                        Custom User Nutrition
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                        Type to calculate nutrition
+                      </span>
+                    )}
                   </div>
 
                   {/* Row 1: Food Name + Quantity + Unit */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-heading font-bold text-clay-text/60 dark:text-slate-400 uppercase mb-1">
-                        Food / Brand Name
+                        Food Name (Type e.g. Oats, Chicken, Banana, Egg...)
                       </label>
                       <input
                         type="text"
                         value={inputFoodName}
-                        onChange={(e) => setInputFoodName(e.target.value)}
-                        placeholder="e.g. High Protein Oats or Peanut Butter"
-                        className="clay-input w-full px-3 py-2 text-xs font-bold text-clay-text dark:text-white rounded-xl"
+                        onChange={(e) => handleFoodNameChange(e.target.value)}
+                        placeholder="Type food name (e.g. Oats, Egg, Chicken, Banana)..."
+                        className="clay-input w-full px-3.5 py-2.5 text-xs font-bold text-clay-text dark:text-white rounded-xl"
+                        autoFocus
                       />
                     </div>
 
@@ -504,11 +537,39 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Row 2: Editable Calories, Protein, Carbs, Fiber, Fat */}
+                  {/* Real-time autocomplete suggestions pills */}
+                  {suggestions.length > 0 && inputFoodName.trim().length >= 2 && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      <span className="text-[10px] text-slate-400 font-bold">Matches:</span>
+                      {suggestions.map((s) => (
+                        <button
+                          key={s.name}
+                          type="button"
+                          onClick={() => handleSelectSuggestedFood(s)}
+                          className={`text-[10px] px-2 py-0.5 rounded-lg font-heading font-bold transition active:scale-95 ${
+                            autoMatchedTemplate?.name === s.name
+                              ? 'clay-btn-lime text-clay-text'
+                              : 'clay-btn text-clay-text dark:text-slate-200'
+                          }`}
+                        >
+                          + {s.name} ({s.baseWeightGrams}g)
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Row 2: Editable Nutrition Values */}
                   <div>
-                    <label className="block text-[10px] font-heading font-bold text-clay-text/60 dark:text-slate-400 uppercase mb-1.5">
-                      Live Calculated Macros (Freely Edit to match your brand):
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[10px] font-heading font-bold text-clay-text/60 dark:text-slate-400 uppercase">
+                        Calculated Nutrition (Change if desired, or save as is):
+                      </label>
+                      {autoMatchedTemplate && (
+                        <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          Matched: {autoMatchedTemplate.name}
+                        </span>
+                      )}
+                    </div>
 
                     <div className="grid grid-cols-5 gap-1.5 text-center">
                       {/* Calories */}
@@ -518,7 +579,10 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                           type="number"
                           min={0}
                           value={inputCalories}
-                          onChange={(e) => setInputCalories(Number(e.target.value))}
+                          onChange={(e) => {
+                            setUserHasEditedMacros(true);
+                            setInputCalories(Number(e.target.value));
+                          }}
                           className="w-full bg-transparent text-center text-xs font-mono font-black text-clay-coral-dark dark:text-clay-coral focus:outline-none"
                         />
                         <span className="text-[9px] text-slate-400 block font-bold">kcal</span>
@@ -534,7 +598,10 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                           step={0.05}
                           min={0}
                           value={inputProtein}
-                          onChange={(e) => setInputProtein(Number(e.target.value))}
+                          onChange={(e) => {
+                            setUserHasEditedMacros(true);
+                            setInputProtein(Number(e.target.value));
+                          }}
                           className="w-full bg-transparent text-center text-xs font-mono font-black text-clay-text dark:text-white focus:outline-none"
                         />
                         <span className="text-[9px] text-slate-400 block font-bold">grams</span>
@@ -548,7 +615,10 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                           step={0.1}
                           min={0}
                           value={inputCarbs}
-                          onChange={(e) => setInputCarbs(Number(e.target.value))}
+                          onChange={(e) => {
+                            setUserHasEditedMacros(true);
+                            setInputCarbs(Number(e.target.value));
+                          }}
                           className="w-full bg-transparent text-center text-xs font-mono font-black text-clay-text dark:text-white focus:outline-none"
                         />
                         <span className="text-[9px] text-slate-400 block font-bold">grams</span>
@@ -564,7 +634,10 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                           step={0.1}
                           min={0}
                           value={inputFiber}
-                          onChange={(e) => setInputFiber(Number(e.target.value))}
+                          onChange={(e) => {
+                            setUserHasEditedMacros(true);
+                            setInputFiber(Number(e.target.value));
+                          }}
                           className="w-full bg-transparent text-center text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 focus:outline-none"
                         />
                         <span className="text-[9px] text-slate-400 block font-bold">grams</span>
@@ -578,7 +651,10 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                           step={0.1}
                           min={0}
                           value={inputFat}
-                          onChange={(e) => setInputFat(Number(e.target.value))}
+                          onChange={(e) => {
+                            setUserHasEditedMacros(true);
+                            setInputFat(Number(e.target.value));
+                          }}
                           className="w-full bg-transparent text-center text-xs font-mono font-black text-clay-text dark:text-white focus:outline-none"
                         />
                         <span className="text-[9px] text-slate-400 block font-bold">grams</span>
@@ -586,36 +662,56 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Add Item Button */}
-                  <button
-                    type="button"
-                    onClick={handleAddIngredient}
-                    disabled={!inputFoodName.trim()}
-                    className="w-full py-3 rounded-2xl clay-btn-sky text-clay-text font-heading font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition disabled:opacity-50 shadow-sm"
-                  >
-                    <Plus className="w-4 h-4 stroke-[3]" />
-                    <span>
-                      Add to Meal ({inputQuantity}{inputUnit} {inputFoodName || 'Item'} • {inputCalories} kcal)
-                    </span>
-                  </button>
+                  {/* Dual Action Buttons: Add to Meal vs Log Directly */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleAddIngredient}
+                      disabled={!inputFoodName.trim()}
+                      className="py-3 px-4 rounded-2xl clay-btn-sky text-clay-text font-heading font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition disabled:opacity-50 shadow-sm"
+                    >
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                      <span>Add to Meal Builder ({inputCalories} kcal)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLogSingleFoodDirectly}
+                      disabled={!inputFoodName.trim()}
+                      className="py-3 px-4 rounded-2xl clay-btn-lime text-clay-text font-heading font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition disabled:opacity-50 shadow-sm"
+                    >
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>Log Directly to {mealType}</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Composed Meal Items List */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-heading font-black text-clay-text dark:text-white uppercase tracking-wider">
-                      Ingredients in this Meal ({ingredients.length})
-                    </span>
-                    <span className="text-[11px] font-mono font-black text-clay-coral-dark dark:text-clay-coral">
-                      Total: {totalCalories} kcal
-                    </span>
-                  </div>
-
-                  {ingredients.length === 0 ? (
-                    <div className="p-5 rounded-2xl clay-sunken text-center text-xs text-slate-400 font-bold">
-                      No ingredients added yet. Enter a food name and quantity above to build your meal.
+                {/* Composed Meal Ingredients List */}
+                {ingredients.length > 0 && (
+                  <div className="space-y-3 pt-1">
+                    {/* Optional Meal Title Input */}
+                    <div>
+                      <label className="block text-[11px] font-heading font-black text-clay-text/80 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Meal / Bowl Title (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={mealName}
+                        onChange={(e) => setMealName(e.target.value)}
+                        placeholder="e.g. Oatmeal with Banana & Peanut Butter"
+                        className="clay-input w-full px-4 py-2.5 text-xs font-heading font-black text-clay-text dark:text-white rounded-2xl"
+                      />
                     </div>
-                  ) : (
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-heading font-black text-clay-text dark:text-white uppercase tracking-wider">
+                        Composed Meal Items ({ingredients.length})
+                      </span>
+                      <span className="text-[11px] font-mono font-black text-clay-coral-dark dark:text-clay-coral">
+                        Total: {totalCalories} kcal
+                      </span>
+                    </div>
+
                     <div className="space-y-2.5">
                       {ingredients.map((item) => (
                         <div
@@ -767,53 +863,52 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
 
-                {/* Total Composed Meal Nutrition Card */}
-                <div className="p-4 sm:p-5 rounded-3xl clay-card-lime text-clay-text shadow-sm">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <span className="text-[10px] font-heading font-black uppercase tracking-wider block text-slate-800">
-                        Total {mealType.toUpperCase()} Nutrition
-                      </span>
-                      <span className="text-3xl font-heading font-black font-mono block">
-                        {totalCalories}{' '}
-                        <span className="text-xs font-bold font-sans">kcal</span>
-                      </span>
+                    {/* Total Composed Meal Nutrition Card */}
+                    <div className="p-4 sm:p-5 rounded-3xl clay-card-lime text-clay-text shadow-sm">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div>
+                          <span className="text-[10px] font-heading font-black uppercase tracking-wider block text-slate-800">
+                            Total {mealType.toUpperCase()} Nutrition
+                          </span>
+                          <span className="text-3xl font-heading font-black font-mono block">
+                            {totalCalories}{' '}
+                            <span className="text-xs font-bold font-sans">kcal</span>
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2 text-center text-slate-800 font-mono text-xs">
+                          <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
+                            <span className="text-[10px] block font-heading font-bold">Protein</span>
+                            <span className="font-black text-sm">{totalProtein}g</span>
+                          </div>
+                          <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
+                            <span className="text-[10px] block font-heading font-bold">Carbs</span>
+                            <span className="font-black text-sm">{totalCarbs}g</span>
+                          </div>
+                          <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
+                            <span className="text-[10px] block font-heading font-bold text-emerald-800 dark:text-emerald-300">Fiber</span>
+                            <span className="font-black text-sm text-emerald-900 dark:text-emerald-200">{totalFiber}g</span>
+                          </div>
+                          <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
+                            <span className="text-[10px] block font-heading font-bold">Fat</span>
+                            <span className="font-black text-sm">{totalFat}g</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2 text-center text-slate-800 font-mono text-xs">
-                      <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
-                        <span className="text-[10px] block font-heading font-bold">Protein</span>
-                        <span className="font-black text-sm">{totalProtein}g</span>
-                      </div>
-                      <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
-                        <span className="text-[10px] block font-heading font-bold">Carbs</span>
-                        <span className="font-black text-sm">{totalCarbs}g</span>
-                      </div>
-                      <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
-                        <span className="text-[10px] block font-heading font-bold text-emerald-800 dark:text-emerald-300">Fiber</span>
-                        <span className="font-black text-sm text-emerald-900 dark:text-emerald-200">{totalFiber}g</span>
-                      </div>
-                      <div className="bg-white/40 dark:bg-black/10 px-2 py-1 rounded-xl">
-                        <span className="text-[10px] block font-heading font-bold">Fat</span>
-                        <span className="font-black text-sm">{totalFat}g</span>
-                      </div>
-                    </div>
+                    {/* Save Entire Composed Meal Button */}
+                    <button
+                      type="button"
+                      onClick={handleSaveComposedMeal}
+                      className="w-full py-4 rounded-clay-btn clay-btn-lime font-heading font-black text-clay-text flex items-center justify-center gap-2 active:scale-95 transition text-sm shadow-md"
+                    >
+                      <Check className="w-5 h-5 stroke-[3]" />
+                      <span>Log Entire Meal ({totalCalories} kcal to {mealType})</span>
+                    </button>
                   </div>
-                </div>
-
-                {/* Save Meal Button */}
-                <button
-                  type="button"
-                  onClick={handleSaveComposedMeal}
-                  disabled={ingredients.length === 0}
-                  className="w-full py-4 rounded-clay-btn clay-btn-lime font-heading font-black text-clay-text flex items-center justify-center gap-2 active:scale-95 transition text-sm shadow-md disabled:opacity-50"
-                >
-                  <Check className="w-5 h-5 stroke-[3]" />
-                  <span>Log Entire Meal ({totalCalories} kcal to {mealType})</span>
-                </button>
+                )}
               </div>
             )}
 
@@ -827,7 +922,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search foods (High Protein Oats, Peanut Butter, Salmon...)"
+                    placeholder="Search foods (Oats, Peanut Butter, Salmon, Rice...)"
                     className="clay-input w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs font-bold text-clay-text dark:text-white"
                   />
                 </div>

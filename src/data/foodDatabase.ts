@@ -18,10 +18,13 @@ export const FOOD_DATABASE: FoodItemTemplate[] = [
   { name: 'Egg Whites', portion: '150g', baseWeightGrams: 150, calories: 78, protein: 16.4, carbs: 1.1, fiber: 0, fat: 0.3, category: 'Protein' },
   { name: 'Greek Yogurt 0% Fat', portion: '200g', baseWeightGrams: 200, calories: 118, protein: 20.6, carbs: 7.2, fiber: 0, fat: 0.8, category: 'Protein' },
   { name: 'Whey Protein Scoop', portion: '1 scoop (30g)', baseWeightGrams: 30, calories: 120, protein: 24, carbs: 2.5, fiber: 0.5, fat: 1.5, category: 'Protein' },
+  { name: 'Paneer (Cottage Cheese)', portion: '100g', baseWeightGrams: 100, calories: 265, protein: 18.3, carbs: 3.4, fiber: 0, fat: 20.8, category: 'Protein' },
   { name: 'Tofu (Firm)', portion: '150g', baseWeightGrams: 150, calories: 144, protein: 15.5, carbs: 3.5, fiber: 2.3, fat: 8.2, category: 'Protein' },
   { name: 'Canned Tuna in Water', portion: '1 can (130g)', baseWeightGrams: 130, calories: 142, protein: 32, carbs: 0, fiber: 0, fat: 1.1, category: 'Protein' },
   { name: 'Lean Ground Beef (93/7)', portion: '150g', baseWeightGrams: 150, calories: 228, protein: 31.5, carbs: 0, fiber: 0, fat: 10.5, category: 'Protein' },
   { name: 'Cottage Cheese Low Fat', portion: '150g', baseWeightGrams: 150, calories: 123, protein: 18.6, carbs: 5.1, fiber: 0, fat: 3.2, category: 'Protein' },
+  { name: 'Cow Milk (Whole)', portion: '1 cup (240ml)', baseWeightGrams: 240, calories: 149, protein: 7.7, carbs: 11.7, fiber: 0, fat: 8.0, category: 'Protein' },
+  { name: 'Skim Milk / Low Fat', portion: '1 cup (240ml)', baseWeightGrams: 240, calories: 83, protein: 8.3, carbs: 12.2, fiber: 0, fat: 0.2, category: 'Protein' },
 
   // Carbs & Grains
   { name: 'High Protein Oats', portion: '50g', baseWeightGrams: 50, calories: 205, protein: 12.25, carbs: 31.0, fiber: 5.5, fat: 3.8, category: 'Carbs' },
@@ -30,12 +33,17 @@ export const FOOD_DATABASE: FoodItemTemplate[] = [
   { name: 'White Rice (Cooked)', portion: '1 cup (158g)', baseWeightGrams: 158, calories: 205, protein: 4.2, carbs: 44.5, fiber: 0.6, fat: 0.4, category: 'Carbs' },
   { name: 'Brown Rice (Cooked)', portion: '1 cup (195g)', baseWeightGrams: 195, calories: 216, protein: 5.0, carbs: 44.8, fiber: 3.5, fat: 1.8, category: 'Carbs' },
   { name: 'Sweet Potato (Baked)', portion: '1 medium (150g)', baseWeightGrams: 150, calories: 135, protein: 3.0, carbs: 31.1, fiber: 4.0, fat: 0.2, category: 'Carbs' },
+  { name: 'Boiled Potato', portion: '1 medium (150g)', baseWeightGrams: 150, calories: 130, protein: 3.0, carbs: 30.0, fiber: 2.4, fat: 0.2, category: 'Carbs' },
   { name: 'Whole Wheat Bread', portion: '2 slices (70g)', baseWeightGrams: 70, calories: 160, protein: 8.0, carbs: 28.0, fiber: 4.0, fat: 2.0, category: 'Carbs' },
+  { name: 'White Bread', portion: '1 slice (30g)', baseWeightGrams: 30, calories: 79, protein: 2.7, carbs: 15.0, fiber: 0.8, fat: 1.0, category: 'Carbs' },
+  { name: 'Roti / Chapati', portion: '1 piece (40g)', baseWeightGrams: 40, calories: 120, protein: 3.5, carbs: 22.0, fiber: 3.5, fat: 1.5, category: 'Carbs' },
+  { name: 'Cooked Lentils / Dal', portion: '1 cup (198g)', baseWeightGrams: 198, calories: 230, protein: 17.9, carbs: 39.9, fiber: 15.6, fat: 0.8, category: 'Carbs' },
+  { name: 'Chickpeas / Chana', portion: '1 cup (164g)', baseWeightGrams: 164, calories: 269, protein: 14.5, carbs: 45.0, fiber: 12.5, fat: 4.2, category: 'Carbs' },
   { name: 'Quinoa (Cooked)', portion: '1 cup (185g)', baseWeightGrams: 185, calories: 222, protein: 8.1, carbs: 39.4, fiber: 5.2, fat: 3.6, category: 'Carbs' },
   { name: 'Pasta (Cooked)', portion: '1 cup (140g)', baseWeightGrams: 140, calories: 221, protein: 8.1, carbs: 43.2, fiber: 2.5, fat: 1.3, category: 'Carbs' },
 
   // Healthy Fats
-  { name: 'Peanut Butter (Natural)', portion: '20g (1 tbsp)', baseWeightGrams: 20, calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, category: 'Fats' },
+  { name: 'Natural Peanut Butter', portion: '20g (1 tbsp)', baseWeightGrams: 20, calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, category: 'Fats' },
   { name: 'Almond Butter', portion: '20g (1 tbsp)', baseWeightGrams: 20, calories: 126, protein: 4.2, carbs: 3.8, fiber: 2.0, fat: 11.2, category: 'Fats' },
   { name: 'Avocado', portion: '1/2 medium (100g)', baseWeightGrams: 100, calories: 160, protein: 2.0, carbs: 8.5, fiber: 6.7, fat: 14.7, category: 'Fats' },
   { name: 'Olive Oil', portion: '1 tbsp (14g)', baseWeightGrams: 14, calories: 119, protein: 0, carbs: 0, fiber: 0, fat: 13.5, category: 'Fats' },
@@ -47,6 +55,7 @@ export const FOOD_DATABASE: FoodItemTemplate[] = [
   { name: 'Baby Spinach (Raw)', portion: '100g', baseWeightGrams: 100, calories: 23, protein: 2.9, carbs: 3.6, fiber: 2.2, fat: 0.4, category: 'Produce' },
   { name: 'Mixed Berries (Fresh)', portion: '1 cup (150g)', baseWeightGrams: 150, calories: 84, protein: 1.4, carbs: 20.0, fiber: 5.3, fat: 0.6, category: 'Produce' },
   { name: 'Apple (Fresh)', portion: '1 medium (182g)', baseWeightGrams: 182, calories: 95, protein: 0.5, carbs: 25.0, fiber: 4.4, fat: 0.3, category: 'Produce' },
+  { name: 'Fresh Orange', portion: '1 medium (140g)', baseWeightGrams: 140, calories: 65, protein: 1.3, carbs: 15.5, fiber: 3.4, fat: 0.2, category: 'Produce' },
 
   // Composed Meals & Bowls
   { name: 'Oatmeal with Banana & Peanut Butter', portion: '1 bowl (50g oats + banana + 20g PB)', baseWeightGrams: 190, calories: 415, protein: 12.9, carbs: 64.7, fiber: 9.8, fat: 13.8, category: 'Meals' },
