@@ -221,7 +221,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-3 text-xs text-slate-400 font-bold mt-1">
+                      <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-400 font-bold mt-1 flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> {dateStr}
                         </span>
@@ -229,7 +229,23 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                         <span className="flex items-center gap-1 font-mono">
                           <Clock className="w-3 h-3" /> {formatDuration(act.durationSeconds)}
                         </span>
-                        {act.elevationGainMeters > 0 && (
+                        {act.indoorDetails?.steps && (
+                          <>
+                            <span>•</span>
+                            <span className="font-mono text-lime-600 dark:text-lime-400 flex items-center gap-0.5">
+                              <Footprints className="w-3 h-3" /> {act.indoorDetails.steps.toLocaleString()} steps
+                            </span>
+                          </>
+                        )}
+                        {act.indoorDetails?.treadmillIncline !== undefined && act.indoorDetails.treadmillIncline > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="font-mono text-amber-600 dark:text-amber-400">
+                              {act.indoorDetails.treadmillIncline}% inc
+                            </span>
+                          </>
+                        )}
+                        {act.elevationGainMeters > 0 && !act.indoorDetails?.treadmillIncline && (
                           <>
                             <span>•</span>
                             <span className="font-mono">+{act.elevationGainMeters}m</span>

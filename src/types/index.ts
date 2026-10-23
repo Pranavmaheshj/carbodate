@@ -78,6 +78,9 @@ export interface ActivityRecord {
     speedKmh?: number;
     resistanceLevel?: number;
     machineType?: string;
+    steps?: number;
+    cadenceSpm?: number;
+    strideLengthMeters?: number;
   };
   swimmingDetails?: {
     stroke: 'freestyle' | 'breaststroke' | 'backstroke' | 'butterfly' | 'mixed';

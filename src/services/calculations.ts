@@ -193,11 +193,49 @@ export function estimateActivityCalories(
 ): number {
   let met = MET_VALUES[type]?.[intensity] || 7.0;
   if (inclinePercent > 0) {
-    // Add MET multiplier for incline treadmill
-    met += inclinePercent * 0.35;
+    // Add MET multiplier for incline treadmill (supporting up to 18% incline)
+    met += inclinePercent * 0.42;
   }
   const hours = durationMinutes / 60;
   return Math.round(met * weightKg * hours);
+}
+
+/**
+ * Clinical ACSM (American College of Sports Medicine) Treadmill Calorie Equation
+ * Incorporates Belt Speed (km/h) and Incline (Grade 0% - 18%+) with body weight.
+ */
+export function calculateTreadmillCalories(
+  speedKmh: number,
+  inclinePercent: number,
+  weightKg: number,
+  durationSeconds: number
+): number {
+  if (speedKmh <= 0 || durationSeconds <= 0 || weightKg <= 0) return 0;
+  const speedMetersPerMin = (speedKmh * 1000) / 60;
+  const grade = Math.max(0, Math.min(0.25, inclinePercent / 100)); // up to 18%+ grade
+
+  // ACSM Metabolic Equations:
+  // Walking (speed <= 6.5 km/h): VO2 = (0.1 * S) + (1.8 * S * G) + 3.5
+  // Running (speed > 6.5 km/h):  VO2 = (0.2 * S) + (0.9 * S * G) + 3.5
+  const isWalking = speedKmh <= 6.5;
+  const vo2 = isWalking
+    ? (0.1 * speedMetersPerMin) + (1.8 * speedMetersPerMin * grade) + 3.5
+    : (0.2 * speedMetersPerMin) + (0.9 * speedMetersPerMin * grade) + 3.5;
+
+  // 1 Liter of O2 consumed = ~4.95 kcal
+  // kcal/min = (VO2 * weightKg / 1000) * 4.95
+  const kcalPerMin = (vo2 * weightKg / 1000) * 4.95;
+  const totalCalories = kcalPerMin * (durationSeconds / 60);
+  return Math.max(1, Math.round(totalCalories));
+}
+
+/**
+ * Estimate stride length in meters based on user height and walking/running speed.
+ */
+export function calculateStrideLengthMeters(heightCm: number, speedKmh: number): number {
+  const safeHeight = heightCm && heightCm > 100 ? heightCm : 175;
+  const factor = speedKmh > 6.5 ? 0.0045 : 0.00415;
+  return Math.round(safeHeight * factor * 100) / 100;
 }
 
 // Haversine formula for distance between 2 GPS coordinates in meters

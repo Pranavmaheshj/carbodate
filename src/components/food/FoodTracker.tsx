@@ -174,11 +174,11 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
           </button>
 
           <button
-            onClick={() => handleOpenAdd('lunch')}
-            className="py-3 px-5 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition"
+            onClick={() => handleOpenAdd('breakfast')}
+            className="py-3 px-5 rounded-clay-btn clay-btn-lime text-clay-text font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Search or Add Food</span>
+            <span>+ Manual Food & Quantity Entry</span>
           </button>
         </div>
       </div>
@@ -241,9 +241,11 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({
                   </button>
                   <button
                     onClick={() => handleOpenAdd(sec.type)}
-                    className="py-2 px-3.5 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs flex items-center gap-1.5 transition active:scale-95"
+                    className="py-2 px-3 rounded-clay-btn clay-btn text-clay-text dark:text-white font-heading font-black text-xs flex items-center gap-1.5 transition active:scale-95"
+                    title={`Add food with quantity to ${sec.title}`}
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" /> Add
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>+ Add Food & Qty</span>
                   </button>
                 </div>
               </div>

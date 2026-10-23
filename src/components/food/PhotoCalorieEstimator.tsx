@@ -30,19 +30,28 @@ interface PhotoCalorieEstimatorProps {
 
 const SAMPLE_PHOTO_PRESETS = [
   {
+    name: 'Oatmeal, Banana & Peanut Butter',
+    desc: '50g oats + 1 banana + 20g peanut butter',
+    url: 'https://images.unsplash.com/photo-1517673400267-0251440c45dc?auto=format&fit=crop&w=600&q=80',
+    hint: '50g oats with a banana and 20g of peanut butter for breakfast',
+  },
+  {
     name: 'Salmon & Quinoa Bowl',
     desc: 'Omega-3 + Complex carbs',
     url: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=600&q=80',
+    hint: '160g salmon fillet with quinoa and steamed greens',
   },
   {
     name: 'Grilled Chicken & Rice',
     desc: 'Lean protein + Jasmine rice',
     url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
+    hint: '180g chicken breast with jasmine rice and avocado',
   },
   {
     name: 'Avocado Toast & Eggs',
     desc: 'Healthy fats + Whole grain',
     url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=600&q=80',
+    hint: '2 poached eggs with sourdough toast and avocado',
   },
 ];
 
@@ -68,6 +77,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
   const [scanResult, setScanResult] = useState<PhotoAnalysisResult | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<MealType>(initialMealType || getDefaultMealType());
   const [mealTitle, setMealTitle] = useState<string>('');
+  const [mealHint, setMealHint] = useState<string>('');
   const [editableItems, setEditableItems] = useState<DetectedFoodCandidate[]>([]);
   const [scanStepText, setScanStepText] = useState<string>('Analyzing image...');
 
@@ -177,28 +187,30 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
     }
   };
 
-  const handleSelectPreset = (url: string) => {
+  const handleSelectPreset = (url: string, hint?: string) => {
     stopCameraStream();
     setImagePreview(url);
-    runScan(url);
+    if (hint) setMealHint(hint);
+    runScan(url, hint);
   };
 
-  const runScan = async (imgUrlOrBase64: string) => {
+  const runScan = async (imgUrlOrBase64: string, explicitHint?: string) => {
     setIsScanning(true);
     setScanResult(null);
-    setScanStepText('Analyzing visual food features...');
+    setScanStepText('Analyzing visual food features with Gemini AI...');
 
     const stepTimer1 = setTimeout(() => {
-      setScanStepText('Estimating portion weights & ingredients...');
+      setScanStepText('Deconstructing ingredients & portion weights...');
     }, 600);
 
     const stepTimer2 = setTimeout(() => {
-      setScanStepText('Computing accurate calorie & macro breakdown...');
+      setScanStepText('Computing accurate USDA calorie & macro breakdown...');
     }, 1200);
 
     try {
       const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_gemini_api_key') : null;
-      const result = await analyzeFoodPhoto(imgUrlOrBase64, storedKey || undefined);
+      const activeHint = explicitHint !== undefined ? explicitHint : mealHint;
+      const result = await analyzeFoodPhoto(imgUrlOrBase64, storedKey || undefined, activeHint);
 
       setScanResult(result);
       setMealTitle(result.title);
@@ -402,6 +414,23 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                     </div>
                   )}
 
+                  {/* Optional Meal Notes / Ingredient Hint Input */}
+                  <div className="p-3.5 rounded-2xl clay-sunken space-y-1.5">
+                    <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300">
+                      Meal Notes or Ingredients (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={mealHint}
+                      onChange={(e) => setMealHint(e.target.value)}
+                      placeholder='e.g. "50g oats with a banana and 20g peanut butter for breakfast"'
+                      className="clay-input w-full px-3.5 py-2.5 text-xs font-bold text-clay-text dark:text-white rounded-xl"
+                    />
+                    <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-bold">
+                      Helps the Gemini AI detect individual toppings, spreads, and exact weights accurately.
+                    </span>
+                  </div>
+
                   {/* Dual Primary Action Tiles: Live Camera & Upload */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* 1. Open Live Camera */}
@@ -456,7 +485,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                         <button
                           key={p.name}
                           type="button"
-                          onClick={() => handleSelectPreset(p.url)}
+                          onClick={() => handleSelectPreset(p.url, p.hint)}
                           className="clay-card-flat rounded-2xl overflow-hidden hover:scale-[1.02] active:scale-95 transition group relative text-left p-2.5 flex items-center sm:flex-col gap-2.5"
                         >
                           <img

@@ -199,6 +199,41 @@ export const ActivitySummaryModal: React.FC<ActivitySummaryModalProps> = ({
           </div>
         </div>
 
+        {/* Indoor Treadmill / Cardio Details */}
+        {activity.indoorDetails && (
+          <div className="mb-5 p-3.5 rounded-2xl clay-sunken">
+            <span className="text-[10px] uppercase tracking-wider font-heading font-black text-clay-text/60 dark:text-slate-400 block mb-2">
+              Indoor Session Metrics
+            </span>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {activity.indoorDetails.treadmillIncline !== undefined && (
+                <div className="p-2 rounded-xl clay-card">
+                  <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-heading font-bold">Incline</span>
+                  <span className="text-sm font-heading font-black text-amber-600 dark:text-amber-400 font-mono">
+                    {activity.indoorDetails.treadmillIncline}%
+                  </span>
+                </div>
+              )}
+              {activity.indoorDetails.steps !== undefined && (
+                <div className="p-2 rounded-xl clay-card">
+                  <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-heading font-bold">Steps</span>
+                  <span className="text-sm font-heading font-black text-clay-lime-dark dark:text-clay-lime font-mono">
+                    {activity.indoorDetails.steps.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {activity.indoorDetails.cadenceSpm !== undefined && (
+                <div className="p-2 rounded-xl clay-card">
+                  <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-heading font-bold">Cadence</span>
+                  <span className="text-sm font-heading font-black text-clay-sky-dark dark:text-clay-sky font-mono">
+                    {activity.indoorDetails.cadenceSpm} spm
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Splits Table if available */}
         {activity.splits && activity.splits.length > 0 && (
           <div className="mb-5">
