@@ -38,7 +38,8 @@ import {
   kgToLb,
   lbToKg,
   cmToFtIn,
-  ftInToCm
+  ftInToCm,
+  formatLocalDate
 } from '../../services/calculations';
 import { StorageService } from '../../services/storage';
 import { CloudSync } from '../../services/cloudSync';
@@ -144,7 +145,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
 
     // If current weight changed, save today's weight record automatically
     if (currentWeightKg !== profile.currentWeightKg) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDate();
       StorageService.saveWeightRecord({
         id: `w_${Date.now()}`,
         userId: profile.id,
@@ -183,7 +184,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `carbodate-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `carbodate-backup-${formatLocalDate()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

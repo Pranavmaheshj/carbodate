@@ -13,7 +13,7 @@ import {
   MilestoneBadge,
   ActivityType
 } from './types';
-import { computeProfileCalculations } from './services/calculations';
+import { computeProfileCalculations, formatLocalDate } from './services/calculations';
 import { CloudSync } from './services/cloudSync';
 
 // Layout & Navigation
@@ -131,7 +131,7 @@ export function App() {
   });
 
   // App Data Collections
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalDate();
   const [activities, setActivities] = useState<ActivityRecord[]>(() => StorageService.getActivities());
   const [gymSessions, setGymSessions] = useState<GymWorkoutSession[]>(() => StorageService.getGymSessions());
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(() => StorageService.getWorkoutPlan());

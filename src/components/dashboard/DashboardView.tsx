@@ -30,7 +30,7 @@ import { CalorieRing } from '../common/CalorieRing';
 import { TodayWorkoutWidget } from './TodayWorkoutWidget';
 import { WeightLogModal } from './WeightLogModal';
 import { WeeklyDeficitWidget } from './WeeklyDeficitWidget';
-import { formatDuration, calculateWeeklyDeficitSummary } from '../../services/calculations';
+import { formatDuration, calculateWeeklyDeficitSummary, formatLocalDate } from '../../services/calculations';
 
 interface DashboardViewProps {
   profile: UserProfile;
@@ -74,7 +74,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
 
   // Compute today's totals
-  const todayDateStr = new Date().toISOString().split('T')[0];
+  const todayDateStr = formatLocalDate();
   const todayWeightRecord = weights.find((w) => w.date === todayDateStr);
   const prevWeightRecord = weights.filter((w) => w.date < todayDateStr).slice(-1)[0];
   const dailyWeightDelta =
@@ -143,7 +143,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const past7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(d);
     const dayBurn =
       activities
         .filter((a) => a.startTime.startsWith(dateStr))
@@ -170,7 +170,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   for (let i = 0; i < 30; i++) {
     const checkDate = new Date();
     checkDate.setDate(checkDate.getDate() - i);
-    const str = checkDate.toISOString().split('T')[0];
+    const str = formatLocalDate(checkDate);
     if (activeDates.has(str)) {
       streak++;
     } else if (i > 0) {

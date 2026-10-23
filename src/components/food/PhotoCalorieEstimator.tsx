@@ -20,6 +20,7 @@ import {
   Key,
 } from 'lucide-react';
 import { analyzeFoodPhoto, compressImageForVision, PhotoAnalysisResult } from '../../services/aiVision';
+import { formatLocalDate } from '../../services/calculations';
 import { MealItem, MealType, DetectedFoodCandidate } from '../../types';
 
 interface PhotoCalorieEstimatorProps {
@@ -271,7 +272,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
     const meal: MealItem = {
       id: `meal_${Date.now()}`,
       userId,
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(),
       mealType: selectedMealType,
       name: mealTitle || 'AI Scanned Meal',
       portion: `${editableItems.length} items`,

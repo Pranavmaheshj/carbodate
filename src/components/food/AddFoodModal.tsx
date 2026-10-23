@@ -28,6 +28,7 @@ import {
   findFoodDatabaseMatch,
 } from '../../data/foodDatabase';
 import { calculateMealTextWithAi } from '../../services/aiVision';
+import { formatLocalDate } from '../../services/calculations';
 
 interface AddFoodModalProps {
   isOpen: boolean;
@@ -381,7 +382,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     const meal: MealItem = {
       id: `meal_${Date.now()}`,
       userId,
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(),
       mealType,
       name: finalTitle,
       portion: portionSummary,
@@ -484,7 +485,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     const meal: MealItem = {
       id: `meal_${Date.now()}`,
       userId,
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(),
       mealType,
       name: finalTitle,
       portion: portionSummary,
@@ -512,7 +513,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     const meal: MealItem = {
       id: `meal_${Date.now()}`,
       userId,
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(),
       mealType,
       name: selectedTemplate.name,
       portion: `${selectedQuantityGrams}g`,
@@ -535,7 +536,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     const meal: MealItem = {
       ...fav,
       id: `meal_${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(),
       mealType,
       createdAt: new Date().toISOString(),
     };

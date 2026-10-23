@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { INITIAL_BADGES } from '../data/badges';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
+import { formatLocalDate } from './calculations';
 
 const STORAGE_KEYS = {
   PROFILE: 'carbodate_profile_v2',
@@ -175,8 +176,8 @@ export const StorageService = {
   },
 
   // WATER
-  getWaterLog(dateStr: string): number {
-    const todayStr = dateStr || new Date().toISOString().split('T')[0];
+  getWaterLog(dateStr?: string): number {
+    const todayStr = dateStr || formatLocalDate();
     const log = getJSON<WaterLog | null>(STORAGE_KEYS.WATER, null);
     if (log && log.date === todayStr) {
       return log.amountMl;
@@ -185,7 +186,7 @@ export const StorageService = {
   },
 
   setWater(amountMl: number, dateStr?: string): void {
-    const todayStr = dateStr || new Date().toISOString().split('T')[0];
+    const todayStr = dateStr || formatLocalDate();
     setJSON<WaterLog>(STORAGE_KEYS.WATER, {
       id: `water_${todayStr}`,
       userId: 'usr_carbodate',
@@ -195,7 +196,7 @@ export const StorageService = {
   },
 
   addWater(amountMl: number, dateStr?: string): number {
-    const todayStr = dateStr || new Date().toISOString().split('T')[0];
+    const todayStr = dateStr || formatLocalDate();
     const current = this.getWaterLog(todayStr);
     const updatedAmount = Math.max(0, current + amountMl);
     this.setWater(updatedAmount, todayStr);
@@ -241,7 +242,7 @@ export const StorageService = {
 
   // FULL STATE PAYLOAD HYDRATION
   getFullPayload(dateStr?: string) {
-    const todayStr = dateStr || new Date().toISOString().split('T')[0];
+    const todayStr = dateStr || formatLocalDate();
     return {
       profile: this.getProfile(),
       activities: this.getActivities(),
@@ -264,7 +265,7 @@ export const StorageService = {
     if (payload.weights) this.setWeights(payload.weights);
     if (payload.badges) this.setBadges(payload.badges);
     if (typeof payload.waterMl === 'number') {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = formatLocalDate();
       this.setWater(payload.waterMl, todayStr);
     }
   },

@@ -20,6 +20,7 @@ import {
   BodyCalculations
 } from '../../types';
 import { WeeklyVolumeChart } from '../gym/WeeklyVolumeChart';
+import { formatLocalDate } from '../../services/calculations';
 
 interface ProgressChartsProps {
   weights: WeightRecord[];
@@ -54,7 +55,7 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
   const daysArray = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split('T')[0];
+    return formatLocalDate(d);
   });
 
   const caloriesInOutData = daysArray.map((dateStr) => {

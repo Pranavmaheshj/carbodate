@@ -340,6 +340,20 @@ export function filterGpsPoints(newPoint: RoutePoint, lastPoint?: RoutePoint): {
 }
 
 /**
+ * Formats a Date or date string into standard local YYYY-MM-DD format.
+ * Prevents timezone offset shifts where UTC conversion (toISOString) subtracts
+ * a day for users in timezones ahead of UTC (e.g. IST UTC+5:30).
+ */
+export function formatLocalDate(dateInput: Date | string = new Date()): string {
+  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Calculates current 7-day Monday-to-Sunday weekly calorie deficit progression,
  * tracking daily deficit completion and flexible single-day or even catch-up balance.
  * If a user created their account partway through the week (e.g. at the end of the week),
@@ -356,15 +370,13 @@ export function calculateWeeklyDeficitSummary(
 ): WeeklyDeficitSummary {
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // Find Monday of current reference week
+  // Find Monday of current reference week (centered at local noon 12:00:00 to prevent any timezone shifts)
   const ref = new Date(referenceDate);
   const currentDayOfWeek = ref.getDay(); // 0 is Sun, 1 is Mon...
   const diffToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-  const monday = new Date(ref);
-  monday.setDate(ref.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
+  const monday = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() + diffToMonday, 12, 0, 0);
 
-  const todayStr = ref.toISOString().split('T')[0];
+  const todayStr = formatLocalDate(ref);
 
   // User join/start date (if created at the end of the week, e.g. Saturday, track from that day)
   const userStartDate = userCreatedAt ? userCreatedAt.split('T')[0] : todayStr;
@@ -382,9 +394,8 @@ export function calculateWeeklyDeficitSummary(
   let todayIndex = 0;
 
   for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i, 12, 0, 0);
+    const dateStr = formatLocalDate(d);
     const isToday = dateStr === todayStr;
     const isPast = dateStr < todayStr;
     const isFuture = dateStr > todayStr;

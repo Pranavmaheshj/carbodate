@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Scale, Check, Calendar, Minus, Plus } from 'lucide-react';
 import { WeightRecord, UserProfile } from '../../types';
-import { kgToLb, lbToKg } from '../../services/calculations';
+import { kgToLb, lbToKg, formatLocalDate } from '../../services/calculations';
 
 interface WeightLogModalProps {
   isOpen: boolean;
@@ -18,14 +18,14 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
   profile,
 }) => {
   const isMetric = profile.unitSystem !== 'imperial';
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(() => formatLocalDate());
   const [weightKg, setWeightKg] = useState<number>(profile.currentWeightKg || 75);
   const [weightLb, setWeightLb] = useState<number>(Math.round(kgToLb(profile.currentWeightKg || 75) * 10) / 10);
   const [note, setNote] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDate();
       setDate(today);
       const initialKg = profile.currentWeightKg || 75;
       setWeightKg(initialKg);
