@@ -20,7 +20,13 @@ import {
   Zap,
 } from 'lucide-react';
 import { MealItem, MealType } from '../../types';
-import { FOOD_DATABASE, FoodItemTemplate } from '../../data/foodDatabase';
+import {
+  FOOD_DATABASE,
+  FoodItemTemplate,
+  calculateFoodNutrition,
+  extractFoodQueryAndQuantity,
+  findFoodDatabaseMatch,
+} from '../../data/foodDatabase';
 
 interface AddFoodModalProps {
   isOpen: boolean;
@@ -83,7 +89,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<FoodItemTemplate | null>(null);
   const [selectedQuantityGrams, setSelectedQuantityGrams] = useState<number>(100);
 
-  const categories = ['All', 'Protein', 'Carbs', 'Fats', 'Produce', 'Meals'];
+  const categories = ['All', 'Drinks', 'Snacks', 'Protein', 'Carbs', 'Fats', 'Produce', 'Meals'];
 
   const filteredFoods = FOOD_DATABASE.filter((f) => {
     const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -98,38 +104,18 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
   const totalFiber = Math.round(ingredients.reduce((sum, item) => sum + item.fiber, 0) * 10) / 10;
   const totalFat = Math.round(ingredients.reduce((sum, item) => sum + item.fat, 0) * 10) / 10;
 
-  // Intelligent real-time food search & matching
-  const findBestFoodMatch = (query: string): FoodItemTemplate | null => {
-    const q = query.trim().toLowerCase();
-    if (!q || q.length < 2) return null;
-
-    // 1. Exact match
-    const exact = FOOD_DATABASE.find((f) => f.name.toLowerCase() === q);
-    if (exact) return exact;
-
-    // 2. Starts with query
-    const startsWith = FOOD_DATABASE.find((f) => f.name.toLowerCase().startsWith(q));
-    if (startsWith) return startsWith;
-
-    // 3. Substring match
-    const contains = FOOD_DATABASE.find((f) => f.name.toLowerCase().includes(q));
-    if (contains) return contains;
-
-    // 4. Word boundary match (e.g. typing "oat" matches "Rolled Oats (Dry)")
-    const wordMatch = FOOD_DATABASE.find((f) => {
-      const words = f.name.toLowerCase().split(/[\s,()/-]+/);
-      return words.some((w) => w.startsWith(q) || q.startsWith(w));
-    });
-    if (wordMatch) return wordMatch;
-
-    return null;
-  };
-
   // Multiple candidates for suggestions pill row
   const getSuggestions = (query: string): FoodItemTemplate[] => {
-    const q = query.trim().toLowerCase();
+    const { cleanName } = extractFoodQueryAndQuantity(query);
+    const q = (cleanName || query).trim().toLowerCase();
     if (!q || q.length < 2) return [];
-    return FOOD_DATABASE.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 4);
+
+    return FOOD_DATABASE.filter((f) => {
+      const fName = f.name.toLowerCase();
+      if (fName.includes(q)) return true;
+      const tokens = q.split(/[\s,()/-]+/).filter((t) => t.length >= 2);
+      return tokens.some((token) => fName.includes(token));
+    }).slice(0, 5);
   };
 
   // Called when user types into the Food Name field
@@ -147,20 +133,42 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
       return;
     }
 
-    // Auto-calculate nutrition from database match
-    const match = findBestFoodMatch(name);
-    if (match && match.baseWeightGrams > 0) {
-      setAutoMatchedTemplate(match);
-      setUserHasEditedMacros(false);
-      const ratio = inputQuantity / match.baseWeightGrams;
-      setInputCalories(Math.round(match.calories * ratio));
-      setInputProtein(Math.round(match.protein * ratio * 100) / 100);
-      setInputCarbs(Math.round(match.carbs * ratio * 10) / 10);
-      setInputFiber(Math.round(match.fiber * ratio * 10) / 10);
-      setInputFat(Math.round(match.fat * ratio * 10) / 10);
+    // Check for auto-extracted quantity & unit if user typed e.g. "50g oats" or "200ml coffee"
+    const { quantity: extractedQty, unit: extractedUnit } = extractFoodQueryAndQuantity(name);
+    let targetQty = inputQuantity;
+    let targetUnit = inputUnit;
+
+    if (extractedQty !== null && extractedQty > 0) {
+      targetQty = extractedQty;
+      setInputQuantity(extractedQty);
+    }
+    if (extractedUnit !== null) {
+      targetUnit = extractedUnit;
+      setInputUnit(extractedUnit);
+    }
+
+    // Auto-calculate nutrition using our Universal Nutrition Calculator
+    const result = calculateFoodNutrition(name, targetQty, targetUnit);
+
+    if (result.matchedTemplate) {
+      setAutoMatchedTemplate(result.matchedTemplate);
+      // If it's a beverage drink and user is currently on 'g', automatically switch unit to 'ml' for user convenience!
+      if (result.matchedTemplate.category === 'Drinks' && targetUnit === 'g' && extractedUnit === null) {
+        setInputUnit('ml');
+        setInputQuantity(result.matchedTemplate.baseWeightGrams);
+        targetUnit = 'ml';
+        targetQty = result.matchedTemplate.baseWeightGrams;
+      }
     } else {
       setAutoMatchedTemplate(null);
     }
+
+    setUserHasEditedMacros(false);
+    setInputCalories(result.calories);
+    setInputProtein(result.protein);
+    setInputCarbs(result.carbs);
+    setInputFiber(result.fiber);
+    setInputFat(result.fat);
   };
 
   // Called when user selects a suggested food match
@@ -168,8 +176,12 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     setInputFoodName(food.name);
     setAutoMatchedTemplate(food);
     setUserHasEditedMacros(false);
-    setInputUnit('g');
-    const targetQty = inputQuantity > 0 ? inputQuantity : food.baseWeightGrams;
+
+    // Choose sensible default unit based on category
+    const defaultUnit = food.category === 'Drinks' ? 'ml' : 'g';
+    setInputUnit(defaultUnit);
+
+    const targetQty = food.baseWeightGrams > 0 ? food.baseWeightGrams : 100;
     setInputQuantity(targetQty);
 
     const ratio = targetQty / food.baseWeightGrams;
@@ -180,19 +192,39 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
     setInputFat(Math.round(food.fat * ratio * 10) / 10);
   };
 
-  // Recalculate input macros when quantity changes for a known item
+  // Recalculate input macros when quantity changes
   const handleQuantityChange = (newQty: number) => {
     const safeQty = Math.max(1, newQty);
     setInputQuantity(safeQty);
 
-    // If we have an auto-matched food, scale the nutrition proportionally
-    if (autoMatchedTemplate && autoMatchedTemplate.baseWeightGrams > 0) {
+    if (!userHasEditedMacros && inputFoodName.trim()) {
+      const result = calculateFoodNutrition(inputFoodName, safeQty, inputUnit);
+      setInputCalories(result.calories);
+      setInputProtein(result.protein);
+      setInputCarbs(result.carbs);
+      setInputFiber(result.fiber);
+      setInputFat(result.fat);
+    } else if (autoMatchedTemplate && autoMatchedTemplate.baseWeightGrams > 0) {
       const ratio = safeQty / autoMatchedTemplate.baseWeightGrams;
       setInputCalories(Math.round(autoMatchedTemplate.calories * ratio));
       setInputProtein(Math.round(autoMatchedTemplate.protein * ratio * 100) / 100);
       setInputCarbs(Math.round(autoMatchedTemplate.carbs * ratio * 10) / 10);
       setInputFiber(Math.round(autoMatchedTemplate.fiber * ratio * 10) / 10);
       setInputFat(Math.round(autoMatchedTemplate.fat * ratio * 10) / 10);
+    }
+  };
+
+  // Recalculate input macros when unit changes (e.g. g <-> ml <-> cup)
+  const handleUnitChange = (newUnit: string) => {
+    setInputUnit(newUnit);
+
+    if (!userHasEditedMacros && inputFoodName.trim()) {
+      const result = calculateFoodNutrition(inputFoodName, inputQuantity, newUnit);
+      setInputCalories(result.calories);
+      setInputProtein(result.protein);
+      setInputCarbs(result.carbs);
+      setInputFiber(result.fiber);
+      setInputFat(result.fat);
     }
   };
 
@@ -521,13 +553,18 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                         <span>Auto-calculated ({autoMatchedTemplate.name})</span>
                       </span>
+                    ) : inputFoodName.trim().length >= 2 && !userHasEditedMacros ? (
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-emerald-600" />
+                        <span>Calculated from USDA data</span>
+                      </span>
                     ) : userHasEditedMacros ? (
                       <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full">
                         Custom User Nutrition
                       </span>
                     ) : (
                       <span className="text-[10px] text-slate-500 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                        Type to calculate nutrition
+                        Type any food, drink, or snack
                       </span>
                     )}
                   </div>
@@ -536,13 +573,13 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-heading font-bold text-clay-text/60 dark:text-slate-400 uppercase mb-1">
-                        Food Name (Type e.g. Oats, Chicken, Banana, Egg...)
+                        Food, Drink, or Snack Name (e.g. Coffee, Oats, Popcorn, Banana...)
                       </label>
                       <input
                         type="text"
                         value={inputFoodName}
                         onChange={(e) => handleFoodNameChange(e.target.value)}
-                        placeholder="Type food name (e.g. Oats, Egg, Chicken, Banana)..."
+                        placeholder="Type food or drink (e.g. Coffee, Chai, Oats, Banana, Egg, Popcorn)..."
                         className="clay-input w-full px-3.5 py-2.5 text-xs font-bold text-clay-text dark:text-white rounded-xl"
                         autoFocus
                       />
@@ -562,7 +599,7 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                         />
                         <select
                           value={inputUnit}
-                          onChange={(e) => setInputUnit(e.target.value)}
+                          onChange={(e) => handleUnitChange(e.target.value)}
                           className="clay-input flex-1 px-2 py-2 text-xs font-bold text-clay-text dark:text-white rounded-xl"
                         >
                           <option value="g">g</option>
@@ -606,11 +643,15 @@ export const AddFoodModal: React.FC<AddFoodModalProps> = ({
                       <label className="block text-[10px] font-heading font-bold text-clay-text/60 dark:text-slate-400 uppercase">
                         Calculated Nutrition (Change if desired, or save as is):
                       </label>
-                      {autoMatchedTemplate && (
+                      {autoMatchedTemplate ? (
                         <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
                           Matched: {autoMatchedTemplate.name}
                         </span>
-                      )}
+                      ) : inputFoodName.trim().length >= 2 ? (
+                        <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          Calculated for {inputFoodName.trim()} ({inputQuantity}{inputUnit})
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="grid grid-cols-5 gap-1.5 text-center">
