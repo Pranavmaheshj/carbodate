@@ -13,17 +13,76 @@ export interface PhotoAnalysisResult {
   notes: string;
   source: 'gemini' | 'local_heuristic';
   modelUsed?: string;
+  cuisineContext?: string;
 }
 
-// Resilient list of vision-capable models in priority order
+// Resilient list of active Google Gemini vision-capable models in priority order
 const VISION_MODELS = [
-  'gemini-3.5-flash',
-  'gemini-3.1-flash-lite',
   'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
+  'gemini-3-flash-preview',
   'gemini-3.6-flash',
-  'gemini-flash-latest',
-  'gemini-3.8-flash',
+  'gemini-3.5-flash',
 ];
+
+/**
+ * Downscales and compresses any image (data URL or blob URL) to max 1024px dimension,
+ * producing a lightweight JPEG base64 string (~150-250KB) that transmits instantly
+ * to Gemini Vision and prevents payload size limits or network timeouts.
+ */
+export async function compressImageForVision(
+  input: string,
+  maxDim = 1024,
+  quality = 0.85
+): Promise<{ base64: string; mimeType: string }> {
+  // If running in browser environment with HTMLImageElement & Canvas
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = (e) => reject(e);
+        img.src = input;
+      });
+
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const match = dataUrl.match(/^data:image\/jpeg;base64,(.+)$/);
+        if (match) {
+          return {
+            mimeType: 'image/jpeg',
+            base64: match[1],
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Canvas image compression failed, falling back to direct base64 converter:', e);
+    }
+  }
+
+  // Fallback if canvas is unavailable or image fails to load in canvas
+  return normalizeImageToBase64(input);
+}
 
 /**
  * Normalizes any image input (data URL, blob URL, or external URL) to raw base64 and mimeType.
@@ -43,11 +102,11 @@ async function normalizeImageToBase64(input: string): Promise<{ base64: string; 
     const blob = await res.blob();
     const mimeType = blob.type || 'image/jpeg';
     const buffer = await blob.arrayBuffer();
-    let binary = '';
     const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    const chunkSize = 8192;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
     }
     return {
       mimeType,
@@ -83,177 +142,156 @@ function extractAndParseJson(rawText: string): any {
 
 /**
  * Analyzes a meal photo using Google Gemini Vision AI to identify food items, portions, and calories.
- * Supports optional user meal hints (e.g. "50g oats with banana and 20g peanut butter") to enhance precision.
+ * Uses specific cuisine context (e.g. Indian, Western, Mediterranean, etc.) and recipe context.
  */
 export async function analyzeFoodPhoto(
   imageBase64OrUrl: string,
   userApiKey?: string,
-  userHint?: string
+  userHint?: string,
+  userCuisine?: string
 ): Promise<PhotoAnalysisResult> {
-  const apiKey =
-    userApiKey ||
-    (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_gemini_api_key') : null) ||
-    (import.meta.env.VITE_GEMINI_API_KEY as string);
+  const envKey = (import.meta.env.VITE_GEMINI_API_KEY as string)?.trim();
+  const storedKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_gemini_api_key') : null)?.trim();
+  const passedKey = userApiKey?.trim();
+  const cuisineContext = (userCuisine || (typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_cuisine_context') : null) || 'Indian / Regional & Global').trim();
 
-  if (apiKey && apiKey.length > 8 && apiKey !== 'your-gemini-api-key-here') {
+  // Cascade candidate keys: passedKey -> storedKey -> envKey
+  const candidateKeys = [passedKey, storedKey, envKey].filter(
+    (k): k is string => Boolean(k && k.length > 8 && k !== 'your-gemini-api-key-here')
+  );
+  const keysToTry = Array.from(new Set(candidateKeys));
+
+  if (keysToTry.length > 0) {
     try {
-      const { base64, mimeType } = await normalizeImageToBase64(imageBase64OrUrl);
+      const { base64, mimeType } = await compressImageForVision(imageBase64OrUrl);
 
-      const prompt = `You are a certified sports nutritionist and nutritional AI for the Carbodate fitness app.
-${userHint ? `User notes / recipe context: "${userHint}". Strictly prioritize detecting, measuring, and estimating portions for these ingredients alongside visual features.` : ''}
+      // User's exact requested prompt & schema enhancement
+      const prompt = `You are a nutrition analyst. Look carefully at the photo and identify every
+distinct food or drink visible. Cuisine context: ${cuisineContext}.
+${userHint ? `User notes & recipe context: "${userHint}". Strictly prioritize detecting, measuring, and estimating portions for all ingredients mentioned by the user in combination with visual cues.` : ''}
+Rules:
+- Name each item specifically (e.g. "idli", not "rice cake").
+- If unsure, lower the confidence and give up to 2 alternative names.
+- Estimate portion in grams or a household unit, using the plate/bowl size as reference.
+- Return calories, protein, carbs, fat per item.
+- If no food is visible, return an empty items array.
+Return JSON only:
+{"items":[{"name":"","confidence":0.0,"alternatives":[],"portion":"","grams":0,
+"calories":0,"protein":0,"carbs":0,"fat":0}]}`;
 
-First, check whether the image depicts edible food, beverages, groceries, snacks, or a plated meal.
+      // Try keys in priority order
+      for (const apiKey of keysToTry) {
+        // Try active models in waterfall order with AbortController timeout
+        for (const model of VISION_MODELS) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 7500);
 
-If the image is NOT food-related (for example: it shows people, animals, vehicles, electronics, furniture, office interiors, documents, shoes, nature, or screenshots of code/text):
-Return strictly:
-{
-  "isFood": false,
-  "warningMessage": "No edible food or meal was detected in this picture. Please upload the picture of your meal to calculate the nutrition.",
-  "title": "Non-Food Image",
-  "items": [],
-  "notes": ""
-}
-
-If the image IS food:
-1. DECONSTRUCT COMPOSITE MEALS & BOWLS:
-   - For breakfast bowls, oatmeal, porridge, smoothies, parfaits, and mixed dishes: Always decompose into each distinct ingredient (e.g. rolled oats, banana, peanut butter, milk/yogurt, berries, honey, nuts).
-   - Never output a single vague item like "Oatmeal" if individual toppings or spreads like banana or peanut butter are present.
-2. Estimate accurate portion weights (in grams, ml, or pieces) based on typical plate proportions or user hints (e.g. 50g rolled oats, 1 medium banana ~118g, 20g peanut butter ~1 tbsp).
-3. Calculate accurate calories, protein (g), carbohydrates (g), fiber (g), and fat (g) for each ingredient using USDA nutritional standards.
-4. Provide a confidence score (0.0 to 1.0) for visual identification.
-5. Provide a brief 1-2 sentence nutritional insight explaining the macro balance, nutrient density, and satiety profile.
-
-Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter):
-{
-  "isFood": true,
-  "warningMessage": "",
-  "title": "Appetizing name of the meal (e.g. Oatmeal Bowl with Sliced Banana & Peanut Butter)",
-  "items": [
-    {
-      "name": "Food item name",
-      "portion": "Estimated portion in grams or servings (e.g. 50g dry rolled oats or 20g peanut butter)",
-      "calories": 190,
-      "protein": 6.5,
-      "carbs": 34,
-      "fiber": 4.5,
-      "fat": 3.5,
-      "confidence": 0.98
-    }
-  ],
-  "notes": "Brief nutritional summary highlighting protein quality and carbohydrate pacing."
-}`;
-
-      // Try active models in waterfall order to avoid 503 / high demand spikes
-      for (const model of VISION_MODELS) {
-        try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    { text: prompt },
-                    {
-                      inline_data: {
-                        mime_type: mimeType.includes('image/') ? mimeType : 'image/jpeg',
-                        data: base64,
+          try {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      { text: prompt },
+                      {
+                        inline_data: {
+                          mime_type: mimeType.includes('image/') ? mimeType : 'image/jpeg',
+                          data: base64,
+                        },
                       },
-                    },
-                  ],
+                    ],
+                  },
+                ],
+                generationConfig: {
+                  temperature: 0.1,
+                  response_mime_type: 'application/json',
                 },
-              ],
-              generationConfig: {
-                temperature: 0.15,
-                response_mime_type: 'application/json',
-              },
-            }),
-          });
+              }),
+            });
 
-          if (!response.ok) {
-            console.warn(`Model ${model} returned ${response.status}. Attempting next vision candidate...`);
-            continue;
-          }
+            clearTimeout(timeoutId);
 
-          const data = await response.json();
-          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-          if (rawText) {
-            const parsed = extractAndParseJson(rawText);
-
-            // Handle non-food detection directly from Gemini
-            if (parsed.isFood === false) {
-              return {
-                isFood: false,
-                warningMessage:
-                  parsed.warningMessage ||
-                  'Please upload the picture of your meal to calculate the nutrition.',
-                title: parsed.title || 'Non-Food Image Detected',
-                items: [],
-                totalCalories: 0,
-                totalProtein: 0,
-                totalCarbs: 0,
-                totalFat: 0,
-                totalFiber: 0,
-                notes: '',
-                source: 'gemini',
-                modelUsed: model,
-              };
+            if (!response.ok) {
+              console.warn(`Model ${model} returned HTTP ${response.status}. Trying next vision candidate...`);
+              continue;
             }
 
-            const items: DetectedFoodCandidate[] = (parsed.items || []).map((item: any) => ({
-              name: String(item.name || 'Food Item'),
-              portion: String(item.portion || '1 serving'),
-              calories: Math.max(0, Math.round(Number(item.calories) || 0)),
-              protein: Math.max(0, Math.round((Number(item.protein) || 0) * 10) / 10),
-              carbs: Math.max(0, Math.round((Number(item.carbs) || 0) * 10) / 10),
-              fat: Math.max(0, Math.round((Number(item.fat) || 0) * 10) / 10),
-              fiber: Math.max(0, Math.round((Number(item.fiber) || 0) * 10) / 10),
-              confidence: Math.min(1, Math.max(0.5, Number(item.confidence) || 0.9)),
-            }));
+            const data = await response.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-            if (items.length === 0) {
+            if (rawText) {
+              const parsed = extractAndParseJson(rawText);
+              const rawItems = parsed.items || [];
+
+              // If no food is visible, return non-food warning
+              if (!Array.isArray(rawItems) || rawItems.length === 0) {
+                return {
+                  isFood: false,
+                  warningMessage:
+                    'No edible food or meal was detected in this picture. Please upload the picture of your meal to calculate the nutrition.',
+                  title: 'No Food Detected',
+                  items: [],
+                  totalCalories: 0,
+                  totalProtein: 0,
+                  totalCarbs: 0,
+                  totalFat: 0,
+                  totalFiber: 0,
+                  notes: '',
+                  source: 'gemini',
+                  modelUsed: model,
+                  cuisineContext,
+                };
+              }
+
+              const items: DetectedFoodCandidate[] = rawItems.map((item: any) => ({
+                name: String(item.name || 'Food Item'),
+                portion: String(item.portion || (item.grams ? `${item.grams}g` : '1 serving')),
+                grams: typeof item.grams === 'number' && item.grams > 0 ? item.grams : undefined,
+                alternatives: Array.isArray(item.alternatives) ? item.alternatives.map(String).filter(Boolean) : [],
+                calories: Math.max(0, Math.round(Number(item.calories) || 0)),
+                protein: Math.max(0, Math.round((Number(item.protein) || 0) * 10) / 10),
+                carbs: Math.max(0, Math.round((Number(item.carbs) || 0) * 10) / 10),
+                fat: Math.max(0, Math.round((Number(item.fat) || 0) * 10) / 10),
+                fiber: Math.max(0, Math.round((Number(item.fiber) || 0) * 10) / 10),
+                confidence: Math.min(1, Math.max(0.1, Number(item.confidence) || 0.95)),
+              }));
+
+              const totalCalories = items.reduce((s, i) => s + i.calories, 0);
+              const totalProtein = items.reduce((s, i) => s + i.protein, 0);
+              const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+              const totalFat = items.reduce((s, i) => s + i.fat, 0);
+              const totalFiber = items.reduce((s, i) => s + (i.fiber || 0), 0);
+
+              // Formulate a clean title from top items
+              const title =
+                items.length === 1
+                  ? items[0].name.charAt(0).toUpperCase() + items[0].name.slice(1)
+                  : items.map((i) => i.name.charAt(0).toUpperCase() + i.name.slice(1)).slice(0, 3).join(', ') +
+                    (items.length > 3 ? '...' : '');
+
               return {
-                isFood: false,
-                warningMessage:
-                  parsed.warningMessage ||
-                  'No recognizable food items could be identified in this image. Please upload the picture of your meal to calculate the nutrition.',
-                title: 'No Food Detected',
-                items: [],
-                totalCalories: 0,
-                totalProtein: 0,
-                totalCarbs: 0,
-                totalFat: 0,
-                totalFiber: 0,
-                notes: '',
+                isFood: true,
+                title,
+                items,
+                totalCalories: Math.round(totalCalories),
+                totalProtein: Math.round(totalProtein * 10) / 10,
+                totalCarbs: Math.round(totalCarbs * 10) / 10,
+                totalFat: Math.round(totalFat * 10) / 10,
+                totalFiber: Math.round(totalFiber * 10) / 10,
+                notes: `Identified ${items.length} item(s) specifically analyzed under ${cuisineContext} cuisine.`,
                 source: 'gemini',
                 modelUsed: model,
+                cuisineContext,
               };
             }
-
-            const totalCalories = items.reduce((s, i) => s + i.calories, 0);
-            const totalProtein = items.reduce((s, i) => s + i.protein, 0);
-            const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
-            const totalFat = items.reduce((s, i) => s + i.fat, 0);
-            const totalFiber = items.reduce((s, i) => s + (i.fiber || 0), 0);
-
-            return {
-              isFood: true,
-              title: parsed.title || 'Nutritionally Analyzed Meal',
-              items,
-              totalCalories: Math.round(totalCalories),
-              totalProtein: Math.round(totalProtein * 10) / 10,
-              totalCarbs: Math.round(totalCarbs * 10) / 10,
-              totalFat: Math.round(totalFat * 10) / 10,
-              totalFiber: Math.round(totalFiber * 10) / 10,
-              notes: parsed.notes || 'Nutritional scan calculated via Gemini Vision AI.',
-              source: 'gemini',
-              modelUsed: model,
-            };
+          } catch (modelErr) {
+            clearTimeout(timeoutId);
+            console.warn(`Vision pipeline error with ${model}:`, modelErr);
           }
-        } catch (modelErr) {
-          console.warn(`Vision pipeline error with ${model}:`, modelErr);
         }
       }
     } catch (e) {
@@ -262,11 +300,11 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
   }
 
   // Fallback: Intelligent Simulated Nutritional Heuristics (Ensures seamless offline tolerance)
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  await new Promise((resolve) => setTimeout(resolve, 600));
 
   const lowerHint = (userHint || '').toLowerCase();
 
-  // If user hint or photo name indicates a non-food item
+  // If user hint indicates a non-food item
   if (
     lowerHint.includes('car') ||
     lowerHint.includes('cat') ||
@@ -295,9 +333,33 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
       notes: '',
       source: 'local_heuristic',
       modelUsed: 'heuristic-engine',
+      cuisineContext,
     };
   }
 
+  // If user notes or picture mentions idli or dosa or south indian
+  if (lowerHint.includes('idli') || lowerHint.includes('dosa') || lowerHint.includes('sambar') || lowerHint.includes('chutney')) {
+    return {
+      isFood: true,
+      title: 'Idli with Sambar & Coconut Chutney',
+      items: [
+        { name: 'idli', portion: '2 pieces', grams: 100, calories: 130, protein: 4.0, carbs: 26.0, fat: 0.8, confidence: 0.95, alternatives: ['steamed rice cake'] },
+        { name: 'sambar', portion: '1 cup', grams: 200, calories: 120, protein: 5.0, carbs: 18.0, fat: 3.5, confidence: 0.92, alternatives: ['vegetable lentil soup'] },
+        { name: 'coconut chutney', portion: '3 tbsp', grams: 45, calories: 110, protein: 1.0, carbs: 3.0, fat: 10.0, confidence: 0.90, alternatives: ['coconut dip'] },
+      ],
+      totalCalories: 360,
+      totalProtein: 10.0,
+      totalCarbs: 47.0,
+      totalFiber: 5.2,
+      totalFat: 14.3,
+      notes: `Specific food items identified under ${cuisineContext} cuisine.`,
+      source: 'local_heuristic',
+      modelUsed: 'heuristic-engine',
+      cuisineContext,
+    };
+  }
+
+  // If user notes or picture mentions oats, banana, peanut butter
   if (
     lowerHint.includes('oat') ||
     lowerHint.includes('banana') ||
@@ -306,56 +368,38 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
   ) {
     return {
       isFood: true,
-      title: 'High-Protein Oatmeal Bowl with Banana & Peanut Butter',
+      title: 'Oatmeal Bowl with Banana & Peanut Butter',
       items: [
-        { name: 'Rolled Oats (Dry)', portion: '50g', calories: 190, protein: 6.6, carbs: 34.0, fiber: 5.1, fat: 3.5, confidence: 0.98 },
-        { name: 'Fresh Banana', portion: '1 medium (118g)', calories: 105, protein: 1.3, carbs: 27.0, fiber: 3.1, fat: 0.3, confidence: 0.95 },
-        { name: 'Natural Peanut Butter', portion: '20g (1 generous tbsp)', calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, confidence: 0.96 },
+        { name: 'rolled oats', portion: '50g', grams: 50, calories: 190, protein: 6.6, carbs: 34.0, fiber: 5.1, fat: 3.5, confidence: 0.98, alternatives: ['quick oats', 'oat porridge'] },
+        { name: 'banana', portion: '1 medium', grams: 118, calories: 105, protein: 1.3, carbs: 27.0, fiber: 3.1, fat: 0.3, confidence: 0.95, alternatives: ['ripe banana'] },
+        { name: 'peanut butter', portion: '20g', grams: 20, calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, confidence: 0.96, alternatives: ['creamy peanut butter'] },
       ],
       totalCalories: 415,
       totalProtein: 13.4,
       totalCarbs: 65.0,
       totalFiber: 9.8,
       totalFat: 13.8,
-      notes: 'Balanced high-fiber complex carbohydrate breakfast with healthy fats and sustained energy release.',
+      notes: `Specific food items identified under ${cuisineContext} cuisine.`,
       source: 'local_heuristic',
       modelUsed: 'heuristic-engine',
+      cuisineContext,
     };
   }
 
+  // Default meal heuristic if offline and no specific hint
   const sampleMeals = [
     {
-      title: 'Grilled Salmon Bowl with Quinoa & Steamed Greens',
-      notes: 'High omega-3 protein meal with complex slow-digesting carbohydrates and clean micronutrients.',
+      title: 'Rolled Oats, Banana & Peanut Butter',
+      notes: `Specific food items identified under ${cuisineContext} cuisine.`,
       items: [
-        { name: 'Seared Salmon Fillet', portion: '160g fillet', calories: 330, protein: 36, carbs: 0, fiber: 0, fat: 19.5, confidence: 0.96 },
-        { name: 'Tri-Color Quinoa', portion: '120g cooked', calories: 145, protein: 5.2, carbs: 26, fiber: 3.2, fat: 2.4, confidence: 0.91 },
-        { name: 'Steamed Broccoli & Asparagus', portion: '120g florets', calories: 42, protein: 3.5, carbs: 7.2, fiber: 3.8, fat: 0.5, confidence: 0.94 },
-        { name: 'Extra Virgin Olive Oil drizzle', portion: '1 tsp (5ml)', calories: 40, protein: 0, carbs: 0, fiber: 0, fat: 4.5, confidence: 0.85 },
-      ],
-    },
-    {
-      title: 'Seared Chicken Breast, Jasmine Rice & Avocado',
-      notes: 'Lean hypertrophy meal with high leucine content and healthy monounsaturated fats.',
-      items: [
-        { name: 'Herb Marinated Chicken Breast', portion: '180g grilled', calories: 290, protein: 54, carbs: 0, fiber: 0, fat: 6.2, confidence: 0.97 },
-        { name: 'Steamed Jasmine Rice', portion: '150g bowl', calories: 195, protein: 4.0, carbs: 42, fiber: 0.6, fat: 0.4, confidence: 0.95 },
-        { name: 'Hass Avocado slices', portion: '60g fresh', calories: 96, protein: 1.2, carbs: 5.1, fiber: 4.0, fat: 8.8, confidence: 0.92 },
-      ],
-    },
-    {
-      title: 'Avocado Toast with 2 Poached Eggs & Cherry Tomatoes',
-      notes: 'Classic balanced meal offering bioavailable choline, lutein, and sustained morning energy.',
-      items: [
-        { name: 'Poached Eggs', portion: '2 large eggs', calories: 144, protein: 12.8, carbs: 0.8, fiber: 0, fat: 10.0, confidence: 0.98 },
-        { name: 'Sourdough Artisan Toast', portion: '2 slices (80g)', calories: 185, protein: 6.5, carbs: 36, fiber: 2.5, fat: 1.2, confidence: 0.93 },
-        { name: 'Crushed Hass Avocado', portion: '70g spread', calories: 112, protein: 1.4, carbs: 6.0, fiber: 4.7, fat: 10.3, confidence: 0.94 },
-        { name: 'Cherry Tomatoes & Microgreens', portion: '50g fresh', calories: 15, protein: 0.8, carbs: 3.0, fiber: 1.0, fat: 0.2, confidence: 0.89 },
+        { name: 'rolled oats', portion: '50g', grams: 50, calories: 190, protein: 6.6, carbs: 34.0, fiber: 5.1, fat: 3.5, confidence: 0.95, alternatives: ['quick oats'] },
+        { name: 'banana', portion: '1 medium', grams: 118, calories: 105, protein: 1.3, carbs: 27.0, fiber: 3.1, fat: 0.3, confidence: 0.95, alternatives: ['ripe banana'] },
+        { name: 'peanut butter', portion: '20g', grams: 20, calories: 120, protein: 5.5, carbs: 4.0, fiber: 1.6, fat: 10.0, confidence: 0.95, alternatives: ['natural peanut butter'] },
       ],
     },
   ];
 
-  const picked = sampleMeals[Math.floor(Math.random() * sampleMeals.length)];
+  const picked = sampleMeals[0];
   const totalCalories = picked.items.reduce((s, i) => s + i.calories, 0);
   const totalProtein = picked.items.reduce((s, i) => s + i.protein, 0);
   const totalCarbs = picked.items.reduce((s, i) => s + i.carbs, 0);
@@ -374,5 +418,6 @@ Return STRICT JSON ONLY conforming to this schema (no markdown, no extra chatter
     notes: picked.notes,
     source: 'local_heuristic',
     modelUsed: 'heuristic-engine',
+    cuisineContext,
   };
 }

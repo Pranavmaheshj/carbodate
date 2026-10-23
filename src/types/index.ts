@@ -17,6 +17,7 @@ export interface UserProfile {
   targetPaceKgPerWeek: number; // e.g., 0.5 kg/week, max 1.0 kg/week
   unitSystem: UnitSystem;
   dailyWaterGoalMl: number;
+  cuisinePreference?: string;
   isDemoUser?: boolean;
   createdAt: string;
 }
@@ -206,6 +207,8 @@ export interface MilestoneBadge {
 export interface DetectedFoodCandidate {
   name: string;
   portion: string;
+  grams?: number;
+  alternatives?: string[];
   calories: number;
   protein: number;
   carbs: number;

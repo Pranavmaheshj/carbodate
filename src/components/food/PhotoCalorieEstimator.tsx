@@ -18,7 +18,7 @@ import {
   AlertTriangle,
   Utensils,
 } from 'lucide-react';
-import { analyzeFoodPhoto, PhotoAnalysisResult } from '../../services/aiVision';
+import { analyzeFoodPhoto, compressImageForVision, PhotoAnalysisResult } from '../../services/aiVision';
 import { MealItem, MealType, DetectedFoodCandidate } from '../../types';
 
 interface PhotoCalorieEstimatorProps {
@@ -81,6 +81,13 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
   const [selectedMealType, setSelectedMealType] = useState<MealType>(initialMealType || getDefaultMealType());
   const [mealTitle, setMealTitle] = useState<string>('');
   const [mealHint, setMealHint] = useState<string>('');
+  const [cuisineContext, setCuisineContext] = useState<string>(() => {
+    return (
+      (typeof localStorage !== 'undefined'
+        ? localStorage.getItem('carbodate_cuisine_context')
+        : null) || 'Indian / Regional & Global'
+    );
+  });
   const [editableItems, setEditableItems] = useState<DetectedFoodCandidate[]>([]);
   const [scanStepText, setScanStepText] = useState<string>('Analyzing image...');
 
@@ -159,7 +166,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
   };
 
   // Capture frame from active live video stream
-  const capturePhotoFromStream = () => {
+  const capturePhotoFromStream = async () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
@@ -169,11 +176,19 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.88);
 
     stopCameraStream();
-    setImagePreview(dataUrl);
-    runScan(dataUrl);
+    setImagePreview(rawDataUrl);
+
+    try {
+      const { base64, mimeType } = await compressImageForVision(rawDataUrl);
+      const compressedUrl = `data:${mimeType};base64,${base64}`;
+      setImagePreview(compressedUrl);
+      runScan(compressedUrl);
+    } catch {
+      runScan(rawDataUrl);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,10 +196,17 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
     if (file) {
       stopCameraStream();
       const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        setImagePreview(base64);
-        runScan(base64);
+      reader.onload = async () => {
+        const rawBase64 = reader.result as string;
+        setImagePreview(rawBase64);
+        try {
+          const { base64, mimeType } = await compressImageForVision(rawBase64);
+          const compressedUrl = `data:${mimeType};base64,${base64}`;
+          setImagePreview(compressedUrl);
+          runScan(compressedUrl);
+        } catch {
+          runScan(rawBase64);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -213,7 +235,7 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
     try {
       const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('carbodate_gemini_api_key') : null;
       const activeHint = explicitHint !== undefined ? explicitHint : mealHint;
-      const result = await analyzeFoodPhoto(imgUrlOrBase64, storedKey || undefined, activeHint);
+      const result = await analyzeFoodPhoto(imgUrlOrBase64, storedKey || undefined, activeHint, cuisineContext);
 
       setScanResult(result);
       setMealTitle(result.title);
@@ -420,21 +442,51 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                     </div>
                   )}
 
-                  {/* Optional Meal Notes / Ingredient Hint Input */}
-                  <div className="p-3.5 rounded-2xl clay-sunken space-y-1.5">
-                    <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300">
-                      Meal Notes or Ingredients (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={mealHint}
-                      onChange={(e) => setMealHint(e.target.value)}
-                      placeholder='e.g. "50g oats with a banana and 20g peanut butter for breakfast"'
-                      className="clay-input w-full px-3.5 py-2.5 text-xs font-bold text-clay-text dark:text-white rounded-xl"
-                    />
-                    <span className="text-[10px] text-clay-text/60 dark:text-slate-400 block font-bold">
-                      Helps the Gemini AI detect individual toppings, spreads, and exact weights accurately.
-                    </span>
+                  {/* Cuisine Context & Meal Notes */}
+                  <div className="p-3.5 rounded-2xl clay-sunken space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-heading font-black text-clay-text/80 dark:text-slate-300">
+                        Cuisine Context
+                      </label>
+                      <span className="text-[10px] font-bold text-lime-700 dark:text-lime-400">
+                        {cuisineContext}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {['Indian', 'Western / Healthy', 'Asian', 'Mediterranean', 'Global'].map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setCuisineContext(c);
+                            try {
+                              localStorage.setItem('carbodate_cuisine_context', c);
+                            } catch {}
+                          }}
+                          className={`text-[10px] px-2.5 py-1 rounded-xl font-heading font-black transition active:scale-95 cursor-pointer ${
+                            cuisineContext === c
+                              ? 'clay-btn-lime text-clay-text'
+                              : 'clay-btn text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="pt-1">
+                      <label className="block text-[11px] font-heading font-black text-clay-text/70 dark:text-slate-300 mb-1">
+                        Meal Notes / Ingredients (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={mealHint}
+                        onChange={(e) => setMealHint(e.target.value)}
+                        placeholder='e.g. "50g oats with a banana and 20g peanut butter for breakfast"'
+                        className="clay-input w-full px-3.5 py-2 text-xs font-bold text-clay-text dark:text-white rounded-xl"
+                      />
+                    </div>
                   </div>
 
                   {/* Dual Primary Action Tiles: Live Camera & Upload */}
@@ -584,7 +636,36 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                     </div>
                   </div>
 
-                  {/* Scanning Pulse Status */}
+                  {/* Interactive Recipe Notes & Refinement Input */}
+                  <div className="p-3 rounded-2xl clay-sunken flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg clay-sunken text-lime-700 dark:text-lime-400 whitespace-nowrap">
+                        {cuisineContext}
+                      </span>
+                      <input
+                        type="text"
+                        value={mealHint}
+                        onChange={(e) => setMealHint(e.target.value)}
+                        placeholder='Add notes (e.g. "50g oats with a banana and 20g peanut butter")'
+                        className="bg-transparent flex-1 text-xs font-bold text-clay-text dark:text-white placeholder:text-slate-400 focus:outline-none px-1 min-w-0"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && imagePreview && !isScanning) {
+                            runScan(imagePreview, mealHint);
+                          }
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isScanning}
+                      onClick={() => imagePreview && runScan(imagePreview, mealHint)}
+                      className="py-1.5 px-3 rounded-xl clay-btn-lime text-[11px] font-heading font-black text-clay-text flex items-center justify-center gap-1 active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs flex-shrink-0"
+                      title="Re-analyze meal using updated recipe notes"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
+                      <span>Re-scan</span>
+                    </button>
+                  </div>
                   {isScanning && (
                     <div className="p-5 rounded-3xl clay-sunken text-center space-y-2">
                       <Sparkles className="w-7 h-7 text-clay-lime-dark dark:text-clay-lime mx-auto animate-spin" />
@@ -797,19 +878,47 @@ export const PhotoCalorieEstimator: React.FC<PhotoCalorieEstimatorProps> = ({
                               className="p-3.5 rounded-2xl clay-card-flat flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                             >
                               <div className="flex-1 min-w-0">
-                                <input
-                                  type="text"
-                                  value={item.name}
-                                  onChange={(e) => handleUpdateItem(idx, 'name', e.target.value)}
-                                  className="w-full bg-transparent font-heading font-black text-clay-text dark:text-white text-sm focus:outline-none"
-                                />
-                                <input
-                                  type="text"
-                                  value={item.portion}
-                                  onChange={(e) => handleUpdateItem(idx, 'portion', e.target.value)}
-                                  className="text-clay-text/60 dark:text-slate-400 font-bold bg-transparent text-xs focus:outline-none w-full mt-0.5"
-                                  placeholder="e.g. 150g or 1 cup"
-                                />
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <input
+                                    type="text"
+                                    value={item.name}
+                                    onChange={(e) => handleUpdateItem(idx, 'name', e.target.value)}
+                                    className="bg-transparent font-heading font-black text-clay-text dark:text-white text-sm focus:outline-none capitalize"
+                                  />
+                                  {item.confidence !== undefined && item.confidence < 0.85 && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                      {Math.round(item.confidence * 100)}% match
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <input
+                                    type="text"
+                                    value={item.portion}
+                                    onChange={(e) => handleUpdateItem(idx, 'portion', e.target.value)}
+                                    className="text-clay-text/60 dark:text-slate-400 font-bold bg-transparent text-xs focus:outline-none"
+                                    placeholder="e.g. 150g or 1 cup"
+                                  />
+                                  {item.grams !== undefined && item.grams > 0 && (
+                                    <span className="text-[10px] font-mono text-slate-400">({item.grams}g)</span>
+                                  )}
+                                </div>
+                                {item.alternatives && item.alternatives.length > 0 && (
+                                  <div className="flex items-center gap-1 flex-wrap mt-1">
+                                    <span className="text-[9px] text-slate-400">Or:</span>
+                                    {item.alternatives.map((alt, altIdx) => (
+                                      <button
+                                        key={altIdx}
+                                        type="button"
+                                        onClick={() => handleUpdateItem(idx, 'name', alt)}
+                                        className="text-[9px] px-1.5 py-0.5 rounded-md clay-sunken font-bold text-slate-600 dark:text-slate-300 hover:text-lime-600 cursor-pointer"
+                                        title={`Switch name to ${alt}`}
+                                      >
+                                        {alt}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               <div className="flex items-center gap-2 justify-between sm:justify-end">
