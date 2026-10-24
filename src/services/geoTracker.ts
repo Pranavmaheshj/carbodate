@@ -20,6 +20,9 @@ export interface TrackerState {
   splits: SplitRecord[];
   isAutoPaused: boolean;
   wakeLockActive: boolean;
+  gpsSignal: 'searching' | 'locked' | 'error' | 'simulated';
+  gpsAccuracyMeters?: number;
+  errorMessage?: string;
 }
 
 export type TrackerUpdateListener = (state: TrackerState) => void;
@@ -44,10 +47,11 @@ export class GeoTrackerService {
     splits: [],
     isAutoPaused: false,
     wakeLockActive: false,
+    gpsSignal: 'searching',
   };
 
   private listeners: Set<TrackerUpdateListener> = new Set();
-  private autoPauseThresholdSec = 2; // Strava-like fast auto-pause trigger
+  private autoPauseThresholdSec = 6;
   private stationaryCounter = 0;
   private currentSplitStartMeters = 0;
   private currentSplitStartTime = 0;
@@ -151,6 +155,7 @@ export class GeoTrackerService {
       splits: [],
       isAutoPaused: false,
       wakeLockActive: false,
+      gpsSignal: 'searching',
     };
     this.currentSplitStartMeters = 0;
     this.currentSplitStartTime = 0;
@@ -184,6 +189,7 @@ export class GeoTrackerService {
       splits: [],
       isAutoPaused: false,
       wakeLockActive: false,
+      gpsSignal: simulated ? 'simulated' : 'searching',
     };
     this.currentSplitStartMeters = 0;
     this.currentSplitStartTime = 0;
@@ -408,6 +414,10 @@ export class GeoTrackerService {
   ) {
     if (this.state.status !== 'tracking') return;
 
+    this.state.gpsSignal = 'locked';
+    this.state.gpsAccuracyMeters = accuracy;
+    this.state.errorMessage = undefined;
+
     const newPoint: RoutePoint = {
       lat,
       lng,
@@ -430,35 +440,27 @@ export class GeoTrackerService {
       : 0;
     this.state.currentSpeedKmh = Math.round(calcSpeedKmh * 10) / 10;
 
-    // Strava-Style Auto-Pause / Auto-Resume Logic:
-    const pauseThresholdKmh = this.state.activityType === 'cycling' ? 2.5 : 1.0;
-    const resumeThresholdKmh = this.state.activityType === 'cycling' ? 3.0 : 0.8;
-
-    // Fast Auto-Resume: If user continues walking or moving (speed >= 0.8 km/h or distanceDelta >= 1.2m), immediately resume!
+    // Fast Auto-Resume / Auto-Pause (lenient 6-second threshold, never discards moving distance)
+    const pauseThresholdKmh = this.state.activityType === 'cycling' ? 2.0 : 0.6;
     if (this.state.isAutoPaused) {
-      if (calcSpeedKmh >= resumeThresholdKmh || distanceDelta >= 1.2) {
+      if (calcSpeedKmh >= 0.8 || distanceDelta >= 0.8) {
         this.state.isAutoPaused = false;
         this.stationaryCounter = 0;
-        this.notify();
-      } else {
-        return; // Still stationary
       }
-    } else if (calcSpeedKmh < pauseThresholdKmh) {
+    } else if (calcSpeedKmh < pauseThresholdKmh && distanceDelta < 0.5) {
       this.stationaryCounter += 1;
       if (this.stationaryCounter >= this.autoPauseThresholdSec) {
         this.state.isAutoPaused = true;
-        this.notify();
-        return;
       }
     } else {
       this.stationaryCounter = 0;
+      this.state.isAutoPaused = false;
     }
 
     // Elevation Gain Calculation
     if (altitude !== undefined && altitude !== null) {
       if (this.lastAltitude !== null) {
         const diff = altitude - this.lastAltitude;
-        // Accept climbs between 0.8m and 25m per sample to filter barometric / GPS vertical noise
         if (diff > 0.8 && diff < 25) {
           this.state.elevationGainMeters += Math.round(diff * 10) / 10;
         }
@@ -469,16 +471,12 @@ export class GeoTrackerService {
     this.state.distanceMeters += distanceDelta;
     this.state.routePoints.push(newPoint);
 
-    // Stride-based Step Calculation Fallback (if accelerometer didn't fire)
-    if (this.state.activityType !== 'cycling' && this.state.steps === 0 && this.state.distanceMeters > 0) {
-      const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh);
-      this.state.steps = Math.max(0, Math.round(this.state.distanceMeters / (strideMeters || 0.75)));
-    } else if (this.state.activityType !== 'cycling' && distanceDelta > 0) {
-      // Add proportional step delta if accelerometer is silent
-      const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh);
-      const estSteps = Math.round(distanceDelta / (strideMeters || 0.75));
-      if (this.state.steps < Math.round(this.state.distanceMeters / (strideMeters || 0.75)) - 10) {
-        this.state.steps += Math.max(1, estSteps);
+    // Stride-based Step Calculation Fallback (guarantees steps always sync to distance on all devices)
+    if (this.state.activityType !== 'cycling' && distanceDelta > 0) {
+      const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh) || 0.75;
+      const expectedStepsFromDistance = Math.round(this.state.distanceMeters / strideMeters);
+      if (this.state.steps < expectedStepsFromDistance) {
+        this.state.steps = expectedStepsFromDistance;
       }
     }
 
@@ -509,10 +507,38 @@ export class GeoTrackerService {
 
   private startNativeGeolocation(): void {
     if (!navigator.geolocation) {
-      this.startSimulation();
+      this.state.gpsSignal = 'error';
+      this.state.errorMessage = 'Geolocation is not supported by your browser.';
+      this.notify();
       return;
     }
 
+    this.state.gpsSignal = 'searching';
+    this.state.errorMessage = undefined;
+    this.notify();
+
+    // Fast initial location lock attempt
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.handleNewPoint(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          pos.coords.altitude || undefined,
+          pos.coords.speed || undefined,
+          pos.coords.accuracy || undefined
+        );
+      },
+      (err) => {
+        console.warn('Initial GPS single-fix attempt notice:', err);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 15000,
+      }
+    );
+
+    // Continuous location tracking
     this.watchId = navigator.geolocation.watchPosition(
       (pos) => {
         this.handleNewPoint(
@@ -524,15 +550,27 @@ export class GeoTrackerService {
         );
       },
       (err) => {
-        console.warn('Geolocation error:', err);
-        if (this.state.routePoints.length === 0) {
-          this.startSimulation();
+        console.warn('Geolocation watch error / status update:', err);
+        if (err.code === 1) {
+          this.state.gpsSignal = 'error';
+          this.state.errorMessage =
+            'Location permission is blocked. Please allow location access in your browser or phone settings.';
+          this.notify();
+        } else if (err.code === 2) {
+          this.state.gpsSignal = 'searching';
+          this.state.errorMessage =
+            'GPS satellite signal unavailable. Please ensure location/GPS is toggled ON in device settings.';
+          this.notify();
+        } else if (err.code === 3) {
+          // Timeout: Keep searching, do NOT abort to simulated NY!
+          this.state.gpsSignal = 'searching';
+          this.notify();
         }
       },
       {
         enableHighAccuracy: true,
-        maximumAge: 1000,
-        timeout: 10000,
+        maximumAge: 3000,
+        timeout: 25000,
       }
     );
   }

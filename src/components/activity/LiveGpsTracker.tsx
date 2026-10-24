@@ -19,6 +19,7 @@ import {
   Activity,
   RotateCcw,
   Flag,
+  Crosshair,
 } from 'lucide-react';
 import L from 'leaflet';
 import { geoTracker, TrackerState } from '../../services/geoTracker';
@@ -158,6 +159,11 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
       currentMarkerRef.current = marker;
       mapInstanceRef.current = map;
 
+      // Invalidate size after layout settles to guarantee crisp tiles on mobile viewports
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 300);
+
       // Center on user's real GPS position if available
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -173,7 +179,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           (err) => {
             console.warn('Initial GPS position fix:', err);
           },
-          { enableHighAccuracy: true, timeout: 5000 }
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
         );
       }
     }
@@ -212,8 +218,39 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
     geoTracker.setActivityType(type);
   };
 
+  // Re-center map view to current GPS position
+  const handleRecenterMap = () => {
+    if (!mapInstanceRef.current) return;
+    const points = trackerState.routePoints;
+    if (points.length > 0) {
+      const latest = points[points.length - 1];
+      mapInstanceRef.current.setView([latest.lat, latest.lng], 17, { animate: true });
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          mapInstanceRef.current?.setView([pos.coords.latitude, pos.coords.longitude], 17, { animate: true });
+          currentMarkerRef.current?.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+        },
+        undefined,
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
+      );
+    }
+  };
+
   // Start with 3-second animated countdown
   const handleTriggerStart = () => {
+    // Synchronously request iOS DeviceMotionEvent permissions during the direct user tap gesture
+    if (
+      typeof (DeviceMotionEvent as any) !== 'undefined' &&
+      typeof (DeviceMotionEvent as any).requestPermission === 'function'
+    ) {
+      try {
+        (DeviceMotionEvent as any).requestPermission().catch(() => {});
+      } catch (e) {
+        // Ignore iOS permission prompt errors
+      }
+    }
+
     setCountdown(3);
     const interval = setInterval(() => {
       setCountdown((prev) => {
@@ -508,6 +545,60 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
               }`}
             >
               Laps ({trackerState.splits.length})
+            </button>
+          </div>
+        )}
+
+        {/* Floating GPS Status Badge (Top Left of Map) */}
+        <div className="absolute top-20 left-4 z-20 flex flex-col gap-1.5 pointer-events-auto">
+          {trackerState.gpsSignal === 'locked' && (
+            <div className="clay-card-flat bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5 shadow-sm border border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>GPS Locked {trackerState.gpsAccuracyMeters ? `(±${Math.round(trackerState.gpsAccuracyMeters)}m)` : ''}</span>
+            </div>
+          )}
+          {trackerState.gpsSignal === 'searching' && (
+            <div className="clay-card-flat bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5 shadow-sm border border-amber-500/40 text-amber-700 dark:text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              <span>Acquiring GPS fix...</span>
+            </div>
+          )}
+          {trackerState.gpsSignal === 'simulated' && (
+            <div className="clay-card-flat bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5 shadow-sm border border-sky-500/40 text-sky-700 dark:text-sky-300">
+              <span>Simulated Route Active</span>
+            </div>
+          )}
+        </div>
+
+        {/* Floating Map Re-center Button (Bottom Right of Map) */}
+        {activeTab === 'map' && (
+          <button
+            type="button"
+            onClick={handleRecenterMap}
+            className="absolute bottom-5 right-4 z-20 clay-card w-11 h-11 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white shadow-xl transition active:scale-95 border border-white/60 dark:border-slate-700"
+            title="Re-center on current location"
+            aria-label="Re-center location"
+          >
+            <Crosshair className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Error / Location Blocked Alert Banner */}
+        {trackerState.errorMessage && (
+          <div className="absolute top-32 left-4 right-4 z-20 p-3 rounded-2xl bg-rose-500/95 text-white shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="leading-tight">{trackerState.errorMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                geoTracker.start(selectedType, true, profile.heightCm);
+                setIsSimulated(true);
+              }}
+              className="px-2.5 py-1 bg-white text-rose-700 font-heading font-black text-[10px] rounded-lg shadow-sm whitespace-nowrap active:scale-95 transition"
+            >
+              Simulate Route
             </button>
           </div>
         )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell,
@@ -524,115 +525,119 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
         </div>
       )}
 
-      {/* EXERCISE PICKER MODAL */}
-      <AnimatePresence>
-        {isPickerOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm pb-safe">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-xl clay-card rounded-clay-card p-4 sm:p-6 shadow-2xl relative text-left h-[86dvh] max-h-[86dvh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-                <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2 font-display">
-                  <div className="w-8 h-8 clay-pebble rounded-full flex items-center justify-center text-lime-600 dark:text-lime-400">
-                    <Dumbbell className="w-4 h-4" />
-                  </div>
-                  <span>Exercise Library</span>
-                </h3>
-                <button
-                  onClick={() => setIsPickerOpen(false)}
-                  className="clay-pebble w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition"
-                  aria-label="Close modal"
+      {/* EXERCISE PICKER MODAL (Portaled to document.body to ensure complete elevation above all navigation bars) */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {isPickerOpen && (
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-md pb-safe">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full max-w-xl clay-card rounded-clay-card p-4 sm:p-6 shadow-2xl relative text-left h-[86dvh] max-h-[86dvh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden"
                 >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Search Bar */}
-              <div className="py-2.5 sm:py-3 flex-shrink-0">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search barbell, squat, row, curls..."
-                    className="clay-input w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none border-none"
-                  />
-                </div>
-              </div>
-
-              {/* Muscle Group Filter Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 sm:pb-3 scrollbar-none mb-1 flex-shrink-0">
-                {['All', ...MUSCLE_GROUPS].map((mg) => (
-                  <button
-                    key={mg}
-                    onClick={() => setSelectedMuscleFilter(mg)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition ${
-                      selectedMuscleFilter === mg
-                        ? 'clay-btn-lime'
-                        : 'clay-btn text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    {mg}
-                  </button>
-                ))}
-              </div>
-
-              {/* Exercise Items List */}
-              <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
-                {filteredLibrary.map((def) => (
-                  <div
-                    key={def.id}
-                    onClick={() => handleAddExercise(def)}
-                    className="clay-card-flat p-3.5 rounded-2xl transition cursor-pointer flex items-center justify-between group hover:scale-[1.01]"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-slate-800 dark:text-slate-100 text-sm group-hover:text-lime-600 dark:group-hover:text-lime-400 transition font-display">
-                          {def.name}
-                        </span>
-                        {def.isCustom && (
-                          <span className="text-[9px] clay-card-sky px-2 py-0.5 rounded-full font-black">
-                            Custom
-                          </span>
-                        )}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2 font-display">
+                      <div className="w-8 h-8 clay-pebble rounded-full flex items-center justify-center text-lime-600 dark:text-lime-400">
+                        <Dumbbell className="w-4 h-4" />
                       </div>
-                      <span className="text-xs font-bold text-slate-400 capitalize">
-                        {def.muscleGroup} • {def.equipment}
-                      </span>
-                    </div>
-
+                      <span>Exercise Library</span>
+                    </h3>
                     <button
-                      type="button"
-                      className="clay-pebble w-8 h-8 rounded-xl group-hover:clay-btn-lime flex items-center justify-center transition"
+                      onClick={() => setIsPickerOpen(false)}
+                      className="clay-pebble w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition"
+                      aria-label="Close modal"
                     >
-                      <Plus className="w-4 h-4 stroke-[3]" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
-                ))}
-              </div>
 
-              {/* Add Custom Exercise trigger */}
-              <div className="pt-3 pb-1 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-2 flex-shrink-0 bg-inherit">
-                <span className="text-xs font-bold text-slate-400 truncate">
-                  Can't find your exercise?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsCustomModalOpen(true)}
-                  className="clay-btn-sky px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition flex-shrink-0 shadow-sm"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>Create Custom</span>
-                </button>
+                  {/* Search Bar */}
+                  <div className="py-2.5 sm:py-3 flex-shrink-0">
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search barbell, squat, row, curls..."
+                        className="clay-input w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none border-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Muscle Group Filter Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 sm:pb-3 scrollbar-none mb-1 flex-shrink-0">
+                    {['All', ...MUSCLE_GROUPS].map((mg) => (
+                      <button
+                        key={mg}
+                        onClick={() => setSelectedMuscleFilter(mg)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition ${
+                          selectedMuscleFilter === mg
+                            ? 'clay-btn-lime'
+                            : 'clay-btn text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {mg}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Exercise Items List */}
+                  <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
+                    {filteredLibrary.map((def) => (
+                      <div
+                        key={def.id}
+                        onClick={() => handleAddExercise(def)}
+                        className="clay-card-flat p-3.5 rounded-2xl transition cursor-pointer flex items-center justify-between group hover:scale-[1.01]"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-slate-800 dark:text-slate-100 text-sm group-hover:text-lime-600 dark:group-hover:text-lime-400 transition font-display">
+                              {def.name}
+                            </span>
+                            {def.isCustom && (
+                              <span className="text-[9px] clay-card-sky px-2 py-0.5 rounded-full font-black">
+                                Custom
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-bold text-slate-400 capitalize">
+                            {def.muscleGroup} • {def.equipment}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="clay-pebble w-8 h-8 rounded-xl group-hover:clay-btn-lime flex items-center justify-center transition"
+                        >
+                          <Plus className="w-4 h-4 stroke-[3]" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Custom Exercise trigger */}
+                  <div className="pt-3 pb-3 sm:pb-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-2 flex-shrink-0 bg-inherit">
+                    <span className="text-xs font-bold text-slate-400 truncate">
+                      Can't find your exercise?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomModalOpen(true)}
+                      className="clay-btn-sky px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition flex-shrink-0 shadow-md"
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>Create Custom</span>
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-            </motion.div>
-          </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
 
       <RestTimerOverlay
         isOpen={isRestTimerOpen}

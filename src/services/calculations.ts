@@ -303,7 +303,7 @@ export function formatDuration(totalSeconds: number): string {
   return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-// Filter GPS points to eliminate jitter and noise
+// Filter GPS points to eliminate jitter and noise while keeping natural walking and running movements
 export function filterGpsPoints(newPoint: RoutePoint, lastPoint?: RoutePoint): {
   isValid: boolean;
   distanceDelta: number;
@@ -320,17 +320,17 @@ export function filterGpsPoints(newPoint: RoutePoint, lastPoint?: RoutePoint): {
     newPoint.lng
   );
 
-  // Accuracy threshold check: if GPS accuracy reported > 35m, ignore
-  if (newPoint.accuracy && newPoint.accuracy > 40) {
+  // Relaxed accuracy threshold for mobile devices: accept points up to 65m
+  if (newPoint.accuracy && newPoint.accuracy > 65) {
     return { isValid: false, distanceDelta: 0 };
   }
 
-  // Micro jitter check: movement under 1.8 meters in short time window
-  if (distMeters < 1.8 && timeDiffSec < 3) {
+  // Micro jitter check: only ignore static zero-movement drifts (under 0.5m in under 1 second)
+  if (distMeters < 0.5 && timeDiffSec < 1.0) {
     return { isValid: false, distanceDelta: 0 };
   }
 
-  // Impossibly high speed filter (> 50 km/h for running/walking, approx 14 m/s)
+  // Speed filter: reject GPS teleport glitches (> 65 km/h approx 18 m/s for outdoor sports)
   const speedMps = distMeters / timeDiffSec;
   if (speedMps > 18) {
     return { isValid: false, distanceDelta: 0 };
