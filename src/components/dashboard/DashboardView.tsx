@@ -32,7 +32,7 @@ import { WeightLogModal } from './WeightLogModal';
 import { RestDaysModal } from './RestDaysModal';
 import { WeeklyDeficitWidget } from './WeeklyDeficitWidget';
 import { StorageService } from '../../services/storage';
-import { formatDuration, calculateWeeklyDeficitSummary, formatLocalDate } from '../../services/calculations';
+import { formatDuration, calculateWeeklyDeficitSummary, formatLocalDate, getActivityLocalDate } from '../../services/calculations';
 
 interface DashboardViewProps {
   profile: UserProfile;
@@ -111,10 +111,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const todayMeals = meals.filter((m) => m.date === todayDateStr);
   const eatenCaloriesToday = todayMeals.reduce((s, m) => s + (m.calories || 0), 0);
 
-  const todayActivities = activities.filter((a) => a.startTime.startsWith(todayDateStr));
+  const todayActivities = activities.filter((a) => getActivityLocalDate(a.startTime) === todayDateStr);
   const cardioCaloriesBurned = todayActivities.reduce((s, a) => s + (a.caloriesBurned || 0), 0);
 
-  const todayGymSessions = gymSessions.filter((g) => g.startTime.startsWith(todayDateStr));
+  const todayGymSessions = gymSessions.filter((g) => getActivityLocalDate(g.startTime) === todayDateStr);
   const gymCaloriesBurned = todayGymSessions.reduce((s, g) => s + (g.caloriesBurned || 0), 0);
 
   const totalCaloriesBurnedToday = cardioCaloriesBurned + gymCaloriesBurned;
@@ -154,10 +154,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const dateStr = formatLocalDate(d);
     const dayBurn =
       activities
-        .filter((a) => a.startTime.startsWith(dateStr))
+        .filter((a) => getActivityLocalDate(a.startTime) === dateStr)
         .reduce((s, a) => s + (a.caloriesBurned || 0), 0) +
       gymSessions
-        .filter((g) => g.startTime.startsWith(dateStr))
+        .filter((g) => getActivityLocalDate(g.startTime) === dateStr)
         .reduce((s, g) => s + (g.caloriesBurned || 0), 0);
     return {
       name: daysOfWeek[d.getDay()],
@@ -170,8 +170,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Compute streak (consecutive active days)
   const activeDates = new Set([
-    ...activities.map((a) => a.startTime.split('T')[0]),
-    ...gymSessions.map((g) => g.startTime.split('T')[0]),
+    ...activities.map((a) => getActivityLocalDate(a.startTime)),
+    ...gymSessions.map((g) => getActivityLocalDate(g.startTime)),
     ...meals.map((m) => m.date),
   ]);
   let streak = 0;

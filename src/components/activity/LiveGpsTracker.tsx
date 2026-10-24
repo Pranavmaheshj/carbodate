@@ -73,6 +73,12 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
   // Subscribe to geoTracker updates
   useEffect(() => {
+    // If not actively tracking, always guarantee a fresh clean idle state
+    if (geoTracker.getState().status !== 'tracking') {
+      geoTracker.reset(selectedType);
+      setTrackerState(geoTracker.getState());
+    }
+
     geoTracker.setUserHeight(profile.heightCm || 175);
     const unsubscribe = geoTracker.subscribe((state) => {
       setTrackerState(state);
@@ -102,7 +108,9 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
     return () => {
       unsubscribe();
-      geoTracker.finish();
+      if (geoTracker.getState().status !== 'tracking') {
+        geoTracker.reset();
+      }
       backgroundWorkout.stopWorkout();
     };
   }, [profile.heightCm, selectedType, profile.currentWeightKg]);
@@ -215,7 +223,12 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
   // When activity type changes in idle mode
   const handleSelectActivity = (type: ActivityType) => {
     setSelectedType(type);
-    geoTracker.setActivityType(type);
+    if (trackerState.status !== 'tracking') {
+      geoTracker.reset(type);
+      setTrackerState(geoTracker.getState());
+    } else {
+      geoTracker.setActivityType(type);
+    }
   };
 
   // Re-center map view to current GPS position
@@ -296,7 +309,20 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
   const handleFinish = async () => {
     backgroundWorkout.stopWorkout();
+    // Cannot finish without starting! If no distance or duration, do NOT save an empty record. Cleanly reset & exit.
+    if (trackerState.durationSeconds <= 0 && trackerState.distanceMeters <= 0) {
+      geoTracker.reset();
+      onCancel();
+      return;
+    }
+
     const finalState = await geoTracker.finish();
+    if (finalState.durationSeconds <= 0 && finalState.distanceMeters <= 0) {
+      geoTracker.reset();
+      onCancel();
+      return;
+    }
+
     const distanceKm = finalState.distanceMeters / 1000;
     const avgSpeed =
       finalState.durationSeconds > 0
@@ -333,6 +359,11 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
   const distKm = (trackerState.distanceMeters / 1000).toFixed(2);
   const speedDisplay = trackerState.currentSpeedKmh.toFixed(1);
+
+  // Robust State Guards: You cannot finish without starting, and cannot be stuck in resume if moving time is 0
+  const isActivelyTracking = trackerState.status === 'tracking';
+  const isPausedSession = trackerState.status === 'paused' && trackerState.durationSeconds > 0;
+  const isPreStart = !isActivelyTracking && !isPausedSession;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#EEF0FB] dark:bg-[#151722] flex flex-col text-slate-800 dark:text-slate-100 select-none h-[100dvh]">
@@ -377,13 +408,18 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
               </span>
 
               {/* Status Pill */}
-              {trackerState.status === 'tracking' && (
+              {isActivelyTracking && (
                 <span className="flex items-center gap-1 bg-lime-500/20 text-lime-700 dark:text-lime-300 text-[10px] font-mono font-black px-2 py-0.5 rounded-full">
                   <span className="w-2 h-2 rounded-full bg-lime-500 animate-ping" />
                   LIVE GPS
                 </span>
               )}
-              {trackerState.status === 'idle' && (
+              {isPausedSession && (
+                <span className="bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-heading font-bold px-2 py-0.5 rounded-full">
+                  PAUSED
+                </span>
+              )}
+              {isPreStart && (
                 <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-heading font-bold px-2 py-0.5 rounded-full">
                   READY
                 </span>
@@ -405,7 +441,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
-          {trackerState.status === 'idle' && (
+          {isPreStart && (
             <button
               onClick={() => setIsSimulated(!isSimulated)}
               className="text-[11px] font-heading font-bold px-3 py-1.5 rounded-full clay-btn text-slate-700 dark:text-slate-200 transition active:scale-95"
@@ -415,7 +451,19 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           )}
 
           <button
-            onClick={onCancel}
+            onClick={() => {
+              if (trackerState.status === 'tracking') {
+                if (window.confirm('Do you want to discard this active workout?')) {
+                  geoTracker.reset();
+                  backgroundWorkout.stopWorkout();
+                  onCancel();
+                }
+              } else {
+                geoTracker.reset();
+                backgroundWorkout.stopWorkout();
+                onCancel();
+              }
+            }}
             className="clay-pebble w-9 h-9 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition active:scale-90"
             aria-label="Exit GPS tracker"
           >
@@ -524,7 +572,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         )}
 
         {/* View Switcher Floating Pill */}
-        {trackerState.status !== 'idle' && (
+        {!isPreStart && (
           <div className="absolute top-20 right-4 z-20 clay-sunken rounded-full p-1 flex gap-1 shadow-md">
             <button
               onClick={() => setActiveTab('map')}
@@ -606,8 +654,8 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
       {/* BOTTOM CONTROL & HUD DASHBOARD */}
       <div className="clay-card rounded-t-[36px] p-5 pb-safe z-20 shadow-2xl space-y-4">
-        {/* PRE-START STATE: ACTIVITY PICKER CAROUSEL (Choose first like Strava) */}
-        {trackerState.status === 'idle' && (
+        {/* PRE-START STATE: ACTIVITY PICKER CAROUSEL (Always shown when not actively running or paused with duration) */}
+        {isPreStart && (
           <div className="space-y-4">
             <div>
               <span className="text-xs font-heading font-black text-clay-text/70 dark:text-slate-400 uppercase tracking-wider block mb-2 text-center">
@@ -663,7 +711,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         )}
 
         {/* ACTIVE / PAUSED STATE: METRICS HUD */}
-        {trackerState.status !== 'idle' && (
+        {!isPreStart && (
           <>
             {/* Primary Numbers HUD - Adapts to Strava Sport Profile */}
             <div className="grid grid-cols-3 gap-2 text-center">

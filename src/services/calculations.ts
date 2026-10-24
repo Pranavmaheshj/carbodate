@@ -354,6 +354,19 @@ export function formatLocalDate(dateInput: Date | string = new Date()): string {
 }
 
 /**
+ * Safely extracts the local date string (YYYY-MM-DD) from an activity or session timestamp.
+ * Prevents UTC-offset bugs where early morning or late night sessions appear under the wrong day.
+ */
+export function getActivityLocalDate(dateOrIsoString?: string | Date): string {
+  if (!dateOrIsoString) return '';
+  const d = typeof dateOrIsoString === 'string' ? new Date(dateOrIsoString) : dateOrIsoString;
+  if (isNaN(d.getTime())) {
+    return String(dateOrIsoString).split('T')[0] || '';
+  }
+  return formatLocalDate(d);
+}
+
+/**
  * Calculates current 7-day Monday-to-Sunday weekly calorie deficit progression,
  * tracking daily deficit completion and flexible single-day or even catch-up balance.
  * If a user created their account partway through the week (e.g. at the end of the week),
@@ -409,11 +422,11 @@ export function calculateWeeklyDeficitSummary(
     const eaten = dayMeals.reduce((s, m) => s + (m.calories || 0), 0);
 
     // Activities for this day
-    const dayActivities = allActivities.filter((a) => a.startTime.startsWith(dateStr));
+    const dayActivities = allActivities.filter((a) => getActivityLocalDate(a.startTime) === dateStr);
     const cardioBurn = dayActivities.reduce((s, a) => s + (a.caloriesBurned || 0), 0);
 
     // Gym sessions for this day
-    const dayGym = allGymSessions.filter((g) => g.startTime.startsWith(dateStr));
+    const dayGym = allGymSessions.filter((g) => getActivityLocalDate(g.startTime) === dateStr);
     const gymBurn = dayGym.reduce((s, g) => s + (g.caloriesBurned || 0), 0);
 
     const burned = cardioBurn + gymBurn;

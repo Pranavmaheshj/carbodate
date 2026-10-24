@@ -20,7 +20,7 @@ import {
   BodyCalculations
 } from '../../types';
 import { WeeklyVolumeChart } from '../gym/WeeklyVolumeChart';
-import { formatLocalDate } from '../../services/calculations';
+import { formatLocalDate, getActivityLocalDate } from '../../services/calculations';
 
 interface ProgressChartsProps {
   weights: WeightRecord[];
@@ -62,10 +62,10 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
     const dayMeals = meals.filter((m) => m.date === dateStr);
     const dayCalsIn = dayMeals.reduce((s, m) => s + (m.calories || 0), 0);
 
-    const dayActivities = activities.filter((a) => a.startTime.startsWith(dateStr));
+    const dayActivities = activities.filter((a) => getActivityLocalDate(a.startTime) === dateStr);
     const dayCardioBurn = dayActivities.reduce((s, a) => s + (a.caloriesBurned || 0), 0);
 
-    const dayGym = gymSessions.filter((g) => g.startTime.startsWith(dateStr));
+    const dayGym = gymSessions.filter((g) => getActivityLocalDate(g.startTime) === dateStr);
     const dayGymBurn = dayGym.reduce((s, g) => s + (g.caloriesBurned || 0), 0);
 
     const totalBurned = dayCardioBurn + dayGymBurn;
@@ -80,7 +80,7 @@ export const ProgressCharts: React.FC<ProgressChartsProps> = ({
 
   // Cardio distance by day
   const distanceData = daysArray.map((dateStr) => {
-    const dayActivities = activities.filter((a) => a.startTime.startsWith(dateStr));
+    const dayActivities = activities.filter((a) => getActivityLocalDate(a.startTime) === dateStr);
     const totalDistKm = dayActivities.reduce((s, a) => s + (a.distanceMeters || 0), 0) / 1000;
     return {
       date: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }),

@@ -13,7 +13,7 @@ import {
   MilestoneBadge,
   ActivityType
 } from './types';
-import { computeProfileCalculations, formatLocalDate } from './services/calculations';
+import { computeProfileCalculations, formatLocalDate, getActivityLocalDate } from './services/calculations';
 import { CloudSync } from './services/cloudSync';
 
 // Layout & Navigation
@@ -172,10 +172,10 @@ export function App() {
   // Compute today's active burned calories
   const burnedToday =
     activities
-      .filter((a) => a.startTime.startsWith(todayStr))
+      .filter((a) => getActivityLocalDate(a.startTime) === todayStr)
       .reduce((s, a) => s + (a.caloriesBurned || 0), 0) +
     gymSessions
-      .filter((g) => g.startTime.startsWith(todayStr))
+      .filter((g) => getActivityLocalDate(g.startTime) === todayStr)
       .reduce((s, g) => s + (g.caloriesBurned || 0), 0);
 
   // Theme effect: applies dark class to html and body, sets color-scheme, and persists
