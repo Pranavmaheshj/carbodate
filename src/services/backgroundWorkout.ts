@@ -26,6 +26,7 @@ class BackgroundWorkoutManager {
   private onResumeCallback: (() => void) | null = null;
   private onStopCallback: (() => void) | null = null;
   private lastMetrics: ActiveWorkoutMetrics | null = null;
+  private swMessageAttached: boolean = false;
 
   /**
    * Initializes silent background audio loop and requests Screen Wake Lock.
@@ -45,6 +46,16 @@ class BackgroundWorkoutManager {
     this.onResumeCallback = options.onResume;
     this.onStopCallback = options.onStop || null;
 
+    // Attach service worker message listener for notification bar action clicks
+    this.setupServiceWorkerListener();
+
+    // Request Notification permission silently if not already asked
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        Notification.requestPermission().catch(() => {});
+      } catch {}
+    }
+
     // 1. Request Screen Wake Lock (keeps display active while exercising)
     await this.acquireWakeLock();
 
@@ -58,54 +69,126 @@ class BackgroundWorkoutManager {
   }
 
   /**
-   * Updates live workout metrics for lock-screen display (MediaSession metadata)
+   * Updates live workout metrics for lock-screen & notification bar display
    */
   updateMetrics(metrics: ActiveWorkoutMetrics): void {
     if (!this.isRunning) return;
     this.lastMetrics = metrics;
     this.isPaused = metrics.isPaused;
 
+    const mins = Math.floor(metrics.durationSeconds / 60);
+    const secs = metrics.durationSeconds % 60;
+    const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const distStr = metrics.distanceMeters !== undefined && metrics.distanceMeters > 0
+      ? `${(metrics.distanceMeters / 1000).toFixed(2)} km`
+      : '0.00 km';
+    const paceStr = metrics.paceMinPerKm || '--:--';
+    const speedStr = metrics.speedKmh ? `${metrics.speedKmh.toFixed(1)} km/h` : '0.0 km/h';
+    const calStr = `${metrics.caloriesBurned} kcal`;
+
+    // 1. Native Mobile MediaSession (Lock Screen & Notification Shade Player)
     if ('mediaSession' in navigator) {
       try {
         navigator.mediaSession.playbackState = metrics.isPaused ? 'paused' : 'playing';
 
-        const mins = Math.floor(metrics.durationSeconds / 60);
-        const secs = metrics.durationSeconds % 60;
-        const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-        // Build concise, readable lock screen summary
-        const statParts: string[] = [];
-        if (typeof metrics.caloriesBurned === 'number' && metrics.caloriesBurned > 0) {
-          statParts.push(`${metrics.caloriesBurned} kcal`);
-        }
-        if (typeof metrics.distanceMeters === 'number' && metrics.distanceMeters > 0) {
-          statParts.push(`${(metrics.distanceMeters / 1000).toFixed(2)} km`);
-        }
-        if (typeof metrics.steps === 'number' && metrics.steps > 0) {
-          statParts.push(`${metrics.steps.toLocaleString()} steps`);
-        }
-        if (typeof metrics.speedKmh === 'number' && metrics.speedKmh > 0) {
-          statParts.push(`${metrics.speedKmh.toFixed(1)} km/h`);
-        }
-
-        const statsLine = statParts.length > 0 ? statParts.join(' • ') : 'Workout in progress';
-
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: `${metrics.title} [${timeStr}]`,
-          artist: `Carbodate Workout • ${metrics.isPaused ? '⏸️ PAUSED' : '⚡ ACTIVE'}`,
-          album: statsLine,
+          title: `${metrics.title} • ${distStr}`,
+          artist: `${timeStr} • Pace: ${paceStr} • ${calStr}`,
+          album: `${speedStr} • ${metrics.isPaused ? '⏸️ PAUSED' : '⚡ ACTIVE'}`,
           artwork: [
             {
-              src: '/favicon.svg',
-              sizes: '96x96 128x128 192x192 256x256 512x512',
-              type: 'image/svg+xml',
+              src: '/pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+            },
+            {
+              src: '/pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
             },
           ],
         });
       } catch (err) {
-        // MediaSession not supported or metadata update throttled
+        // MediaSession not supported or throttled
       }
     }
+
+    // 2. Silent Persistent Ongoing Notification Bar Card (Like Strava)
+    this.updateNotificationBar(metrics, timeStr, distStr, paceStr, calStr, speedStr);
+  }
+
+  /**
+   * Updates or maintains a silent ongoing notification in the system notification shade
+   */
+  private async updateNotificationBar(
+    metrics: ActiveWorkoutMetrics,
+    timeStr: string,
+    distStr: string,
+    paceStr: string,
+    calStr: string,
+    speedStr: string
+  ): Promise<void> {
+    if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+      return;
+    }
+
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration && registration.showNotification) {
+          const statusPrefix = metrics.isPaused ? '⏸️ PAUSED' : '⚡ RECORDING';
+          const bodyText = `${distStr} • Pace: ${paceStr} • ${calStr} • ${speedStr}`;
+
+          await registration.showNotification(`${metrics.title} • ${timeStr} (${statusPrefix})`, {
+            body: bodyText,
+            icon: '/pwa-192x192.png',
+            badge: '/favicon.svg',
+            tag: 'carbodate-live-workout-tracker', // Replaces notification silently in-place
+            silent: true,                         // Absolutely NO beep, sound, or vibrate
+            renotify: false,                      // NO drop-down heads-up alert banner
+            requireInteraction: false,
+            // Ongoing is supported by Chrome and Chromium browsers on mobile devices
+            ongoing: true as any,
+            actions: [
+              {
+                action: metrics.isPaused ? 'workout-resume' : 'workout-pause',
+                title: metrics.isPaused ? '▶️ Resume' : '⏸️ Pause',
+              },
+            ],
+          } as any);
+        }
+      }
+    } catch {
+      // Notification API silently fallback
+    }
+  }
+
+  /**
+   * Clears the ongoing notification from the notification shade
+   */
+  private async clearNotificationBar(): Promise<void> {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const notifications = await reg.getNotifications({ tag: 'carbodate-live-workout-tracker' });
+      notifications.forEach((n) => n.close());
+    } catch {}
+  }
+
+  private setupServiceWorkerListener(): void {
+    if (this.swMessageAttached || typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    this.swMessageAttached = true;
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'WORKOUT_NOTIFICATION_ACTION') {
+        if (event.data.action === 'pause') {
+          this.pauseWorkout();
+          if (this.onPauseCallback) this.onPauseCallback();
+        } else if (event.data.action === 'resume') {
+          this.resumeWorkout();
+          if (this.onResumeCallback) this.onResumeCallback();
+        }
+      }
+    });
   }
 
   /**
@@ -146,6 +229,7 @@ class BackgroundWorkoutManager {
     this.lastMetrics = null;
 
     this.releaseWakeLock();
+    this.clearNotificationBar();
 
     if (this.audioElement) {
       try {

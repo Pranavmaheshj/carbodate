@@ -200,51 +200,49 @@ export function estimateActivityCalories(
   distanceMeters?: number
 ): number {
   if (durationMinutes <= 0 || weightKg <= 0) return 0;
-  let met = MET_VALUES[type]?.[intensity] || 7.0;
-  if (inclinePercent > 0) {
-    // Add MET multiplier for incline treadmill (supporting up to 18% incline)
-    met += inclinePercent * 0.42;
-  }
+
   const hours = durationMinutes / 60;
-  let calories = met * weightKg * hours;
+  const distanceKm = distanceMeters && distanceMeters > 0 ? distanceMeters / 1000 : 0;
+  let calories = 0;
+
+  if (distanceKm > 0) {
+    const avgSpeedKmh = hours > 0 ? distanceKm / hours : 0;
+
+    if (type === 'walking') {
+      // ACSM gross walking expenditure: ~0.73 - 0.78 kcal / kg / km
+      const costPerKgKm = avgSpeedKmh > 5.5 ? 0.78 : avgSpeedKmh < 4.0 ? 0.72 : 0.74;
+      calories = distanceKm * weightKg * costPerKgKm;
+    } else if (type === 'running' || type === 'jogging') {
+      // ACSM running expenditure: ~1.036 kcal / kg / km (Margaria 1963, Lacour 1990)
+      const costPerKgKm = type === 'jogging' ? 0.95 : 1.036;
+      calories = distanceKm * weightKg * costPerKgKm;
+    } else if (type === 'cycling') {
+      // Cycling MET based on average velocity
+      let cycleMet = 6.0;
+      if (avgSpeedKmh > 24) cycleMet = 11.0;
+      else if (avgSpeedKmh > 20) cycleMet = 9.0;
+      else if (avgSpeedKmh > 16) cycleMet = 7.5;
+      calories = cycleMet * weightKg * hours;
+    } else {
+      const met = MET_VALUES[type]?.[intensity] || 7.0;
+      calories = met * weightKg * hours;
+    }
+  } else {
+    // Pure time-based MET if distance is not yet accumulated
+    const met = MET_VALUES[type]?.[intensity] || (type === 'walking' ? 3.5 : type === 'running' ? 9.8 : 7.0);
+    calories = met * weightKg * hours;
+  }
 
   // Exact gravitational work for elevation climb:
   // W = m * g * h (Joules). With ~24% human muscular efficiency:
   // vertical Kcal = (weightKg * 9.80665 * elevationGainMeters) / (4184 * 0.24) ~ 0.00976 * weightKg * elevationGainMeters
   if (elevationGainMeters > 0) {
-    const verticalCalories = weightKg * elevationGainMeters * 0.00976;
-    calories += verticalCalories;
+    calories += weightKg * elevationGainMeters * 0.00976;
   }
 
-  // Exact distance-based energetic expenditure (Compendium of Physical Activities & ACSM):
-  if (distanceMeters && distanceMeters > 0) {
-    const distanceKm = distanceMeters / 1000;
-    let distKcal = 0;
-    if (type === 'running') {
-      // ACSM Running: ~1.03 kcal/kg/km
-      distKcal = distanceKm * weightKg * 1.03;
-    } else if (type === 'jogging') {
-      // ACSM Jogging: ~0.92 kcal/kg/km
-      distKcal = distanceKm * weightKg * 0.92;
-    } else if (type === 'walking') {
-      // ACSM Walking: ~0.73 kcal/kg/km
-      distKcal = distanceKm * weightKg * 0.73;
-    } else if (type === 'cycling') {
-      // Outdoor Cycling average: ~0.35 kcal/kg/km
-      distKcal = distanceKm * weightKg * 0.35;
-    }
-
-    if (distKcal > 0) {
-      // Blend 60% distance work and 40% duration MET to account for speed variation and physiological demand
-      calories = (distKcal * 0.6) + (calories * 0.4);
-      if (elevationGainMeters > 0) {
-        calories += weightKg * elevationGainMeters * 0.00976;
-      }
-    }
-  } else if (steps > 0 && (type === 'walking' || type === 'running' || type === 'jogging')) {
-    // If steps are available and activity is walking/running, incorporate step work:
-    const stepKcal = steps * (weightKg / 70) * (type === 'walking' ? 0.038 : 0.052);
-    calories = Math.max(calories, (calories * 0.65) + (stepKcal * 0.35));
+  // Incline multiplier (for treadmill workouts)
+  if (inclinePercent > 0) {
+    calories += (inclinePercent * 0.42) * weightKg * hours;
   }
 
   return Math.max(0, Math.round(calories));
@@ -350,20 +348,20 @@ export function filterGpsPoints(
     newPoint.lng
   );
 
-  // 1. Accuracy threshold check: discard readings with accuracy error worse than 45m
-  if (newPoint.accuracy && newPoint.accuracy > 45) {
+  // 1. Accuracy threshold check: discard readings with accuracy error worse than 40m
+  if (newPoint.accuracy && newPoint.accuracy > 40) {
     return { isValid: false, distanceDelta: 0 };
   }
 
   // 2. Maximum plausible speed filter tailored to human biomechanics:
-  // Walking: max ~9.5 km/h (2.65 m/s). Anything faster is a GPS jump/glitch!
-  // Running/Jogging: max ~25 km/h (6.95 m/s).
-  // Cycling: max ~65 km/h (18.0 m/s).
+  // Walking: max ~17.5 km/h (4.85 m/s) to accommodate brisk crossing sprints
+  // Running/Jogging: max ~35.0 km/h (9.75 m/s)
+  // Cycling: max ~90.0 km/h (25.0 m/s)
   const maxSpeedMps = activityType === 'walking'
-    ? 2.65
+    ? 4.85
     : activityType === 'running' || activityType === 'jogging'
-    ? 6.95
-    : 18.0;
+    ? 9.75
+    : 25.0;
 
   const speedMps = distMeters / timeDiffSec;
   if (speedMps > maxSpeedMps) {
@@ -371,14 +369,16 @@ export function filterGpsPoints(
   }
 
   // 3. Stationary GPS drift filter:
-  // When standing still, GPS coordinates drift in small random bubbles (~1-2m).
-  // If displacement is small and accuracy is wide (> 12m) or speed is below human walking creep (< 0.6 km/h = 0.17 m/s),
-  // do NOT add false distance!
-  if (distMeters < 1.8 && (newPoint.accuracy || 10) > 12) {
-    return { isValid: false, distanceDelta: 0 };
+  // Hardware Doppler speed check:
+  const hasHardwareSpeed = typeof newPoint.speed === 'number' && newPoint.speed >= 0.25;
+  if (hasHardwareSpeed) {
+    // Device is actively moving according to satellite carrier Doppler measurements!
+    return { isValid: true, distanceDelta: distMeters };
   }
 
-  if (distMeters < 0.6 && timeDiffSec < 1.5) {
+  // Without hardware speed (null or stationary < 0.25 m/s):
+  // Discard sub-meter wiggles within 1.5s as stationary jitter
+  if (distMeters < 0.7 && timeDiffSec < 1.5) {
     return { isValid: false, distanceDelta: 0 };
   }
 

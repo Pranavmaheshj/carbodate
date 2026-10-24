@@ -14,6 +14,7 @@ export interface TrackerState {
   elevationGainMeters: number;
   currentSpeedKmh: number;
   currentPaceSecPerKm: number;
+  avgPaceSecPerKm?: number;
   steps: number;
   cadenceSpm: number;
   routePoints: RoutePoint[];
@@ -41,6 +42,7 @@ export class GeoTrackerService {
     elevationGainMeters: 0,
     currentSpeedKmh: 0,
     currentPaceSecPerKm: 0,
+    avgPaceSecPerKm: 0,
     steps: 0,
     cadenceSpm: 0,
     routePoints: [],
@@ -153,6 +155,7 @@ export class GeoTrackerService {
       elevationGainMeters: 0,
       currentSpeedKmh: 0,
       currentPaceSecPerKm: 0,
+      avgPaceSecPerKm: 0,
       steps: 0,
       cadenceSpm: 0,
       routePoints: [],
@@ -189,6 +192,7 @@ export class GeoTrackerService {
       elevationGainMeters: 0,
       currentSpeedKmh: 0,
       currentPaceSecPerKm: 0,
+      avgPaceSecPerKm: 0,
       steps: 0,
       cadenceSpm: 0,
       routePoints: [],
@@ -366,10 +370,17 @@ export class GeoTrackerService {
       Math.floor((effectiveNow - this.startTimeMs - this.totalPausedMs) / 1000)
     );
 
-    // Recalculate average pace
-    if (this.state.distanceMeters > 30) {
-      this.state.currentPaceSecPerKm =
-        (this.state.durationSeconds / this.state.distanceMeters) * 1000;
+    // Recalculate instant and session average paces
+    if (this.state.currentSpeedKmh >= 0.5 && !this.state.isAutoPaused) {
+      this.state.currentPaceSecPerKm = Math.round(3600 / this.state.currentSpeedKmh);
+    } else {
+      this.state.currentPaceSecPerKm = 0;
+    }
+
+    if (this.state.distanceMeters >= 20 && this.state.durationSeconds > 0) {
+      this.state.avgPaceSecPerKm = Math.round((this.state.durationSeconds / (this.state.distanceMeters / 1000)));
+    } else {
+      this.state.avgPaceSecPerKm = 0;
     }
 
     // Clean up old step timestamps older than 6 seconds to maintain live cadence
@@ -497,17 +508,38 @@ export class GeoTrackerService {
 
     if (!isValid && this.state.routePoints.length > 0) return;
 
-    // Current speed calculation
-    const calcSpeedKmh = speedMps !== undefined && speedMps >= 0
-      ? speedMps * 3.6
-      : distanceDelta > 0
-      ? (distanceDelta / 2) * 3.6
-      : 0;
-    this.state.currentSpeedKmh = Math.round(calcSpeedKmh * 10) / 10;
+    // Exact physical speed calculation: Doppler speed from GPS chip OR distance over true elapsed seconds
+    const timeDeltaSec = lastPoint ? Math.max(0.1, (newPoint.timestamp - lastPoint.timestamp) / 1000) : 1;
+    let instantSpeedKmh = 0;
+    if (typeof speedMps === 'number' && speedMps > 0) {
+      instantSpeedKmh = speedMps * 3.6;
+    } else if (distanceDelta > 0 && timeDeltaSec > 0) {
+      instantSpeedKmh = (distanceDelta / timeDeltaSec) * 3.6;
+    }
+
+    // Biomechanical speed ceiling check
+    const maxKmh = this.state.activityType === 'cycling' ? 85 : this.state.activityType === 'walking' ? 16 : 35;
+    instantSpeedKmh = Math.min(instantSpeedKmh, maxKmh);
+
+    // Exponential smoothing (EMA) for rock-solid speedometer display: 70% current + 30% previous
+    if (this.state.isAutoPaused || instantSpeedKmh < 0.4) {
+      this.state.currentSpeedKmh = 0;
+    } else if (this.state.currentSpeedKmh > 0) {
+      this.state.currentSpeedKmh = Math.round((instantSpeedKmh * 0.7 + this.state.currentSpeedKmh * 0.3) * 10) / 10;
+    } else {
+      this.state.currentSpeedKmh = Math.round(instantSpeedKmh * 10) / 10;
+    }
+
+    // Instant pace in seconds per km (3600 / speedKmh)
+    if (this.state.currentSpeedKmh >= 0.5 && !this.state.isAutoPaused) {
+      this.state.currentPaceSecPerKm = Math.round(3600 / this.state.currentSpeedKmh);
+    } else {
+      this.state.currentPaceSecPerKm = 0;
+    }
 
     // Movement evaluation for responsive auto-pause & auto-resume
     const movingSpeedThreshold = this.state.activityType === 'cycling' ? 2.2 : 0.8;
-    const isMovingForward = calcSpeedKmh >= movingSpeedThreshold || distanceDelta >= 0.7;
+    const isMovingForward = this.state.currentSpeedKmh >= movingSpeedThreshold || distanceDelta >= 0.7;
 
     const now = Date.now();
     if (isMovingForward) {

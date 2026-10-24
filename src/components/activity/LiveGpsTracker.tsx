@@ -94,6 +94,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           state.steps,
           state.distanceMeters
         );
+        const effectivePaceSec = state.currentPaceSecPerKm || state.avgPaceSecPerKm || 0;
         backgroundWorkout.updateMetrics({
           title: `Outdoor ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`,
           type: selectedType,
@@ -102,6 +103,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           distanceMeters: state.distanceMeters,
           steps: state.steps,
           speedKmh: Math.round(state.currentSpeedKmh * 10) / 10,
+          paceMinPerKm: formatPace(effectivePaceSec),
           isPaused: state.status === 'paused' || state.isAutoPaused,
         });
       }
@@ -786,38 +788,53 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
               </div>
             </div>
 
-            {/* Secondary Metrics Bar: Calories, Elevation Gain, Steps/Cadence, Speed */}
+            {/* Secondary Metrics Bar: Calories, Speed, Pace/Steps, Elevation */}
             <div className="flex justify-around items-center text-xs text-slate-500 font-bold py-2 border-t border-slate-200/60 dark:border-slate-800">
-              {/* Calories (Incorporates Elevation + Steps) */}
+              {/* Calories (Clinical ACSM Energy Expenditure) */}
               <span className="flex items-center gap-1.5 font-mono" title="Physiological calories burned">
                 <Flame className="w-4 h-4 text-coral-500" />
                 <strong className="text-clay-text dark:text-white font-black">{liveCalories}</strong> kcal
               </span>
 
-              {/* Elevation Gain */}
-              <span className="flex items-center gap-1.5 font-mono" title="Total elevation climbed">
-                <TrendingUp className="w-4 h-4 text-emerald-500" />
-                <strong className="text-clay-text dark:text-white font-black">
-                  +{Math.round(trackerState.elevationGainMeters)}
-                </strong>
-                m elev
+              {/* Speed (Instantaneous smoothed km/h) */}
+              <span className="flex items-center gap-1.5 font-mono" title="Current Speed">
+                <Gauge className="w-4 h-4 text-sky-500" />
+                <strong className="text-clay-text dark:text-white font-black">{speedDisplay}</strong> km/h
               </span>
 
-              {/* Steps (if running/jogging) or Speed (if cycling/walking) */}
-              {selectedType !== 'cycling' && selectedType !== 'walking' ? (
+              {/* Pace (if walking) or Steps (if running/jogging) */}
+              {selectedType === 'walking' ? (
+                <span className="flex items-center gap-1.5 font-mono" title="Live Pace">
+                  <Compass className="w-4 h-4 text-amber-500" />
+                  <strong className="text-clay-text dark:text-white font-black">
+                    {formatPace(trackerState.currentPaceSecPerKm || trackerState.avgPaceSecPerKm || 0).split(' ')[0]}
+                  </strong>
+                  /km
+                </span>
+              ) : selectedType !== 'cycling' ? (
                 <span className="flex items-center gap-1.5 font-mono" title="Live steps & cadence">
                   <Footprints className="w-4 h-4 text-lime-600 dark:text-lime-400" />
                   <strong className="text-clay-text dark:text-white font-black">
                     {trackerState.steps.toLocaleString()}
-                  </strong>{' '}
-                  steps
+                  </strong>
                 </span>
               ) : (
-                <span className="flex items-center gap-1.5 font-mono">
-                  <Gauge className="w-4 h-4 text-sky-500" />
-                  <strong className="text-clay-text dark:text-white font-black">{speedDisplay}</strong> km/h
+                <span className="flex items-center gap-1.5 font-mono" title="Average Pace">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <strong className="text-clay-text dark:text-white font-black">
+                    {formatPace(trackerState.avgPaceSecPerKm || 0).split(' ')[0]}
+                  </strong>
+                  /km
                 </span>
               )}
+
+              {/* Elevation Gain */}
+              <span className="flex items-center gap-1.5 font-mono" title="Total elevation climbed">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                <strong className="text-clay-text dark:text-white font-black">
+                  +{Math.round(trackerState.elevationGainMeters)}m
+                </strong>
+              </span>
             </div>
 
             {/* Tracking Controls */}
