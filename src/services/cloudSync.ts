@@ -18,6 +18,8 @@ export interface FullUserDataPayload {
   meals: MealItem[];
   weights: WeightRecord[];
   waterMl: number;
+  waterDate?: string;
+  waterHistory?: Record<string, number>;
   badges: MilestoneBadge[];
   lastSyncedAt?: string;
 }
@@ -104,6 +106,8 @@ class CloudSyncService {
           meals: metadata.meals || [],
           weights: metadata.weights || [],
           waterMl: metadata.waterMl || 0,
+          waterDate: metadata.waterDate,
+          waterHistory: metadata.waterHistory,
           badges: metadata.badges || [],
           lastSyncedAt: new Date().toISOString(),
         };

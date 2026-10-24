@@ -152,10 +152,13 @@ export function App() {
         setTodayStr(activeCalendarDate);
         setMeals(StorageService.getMeals(activeCalendarDate));
         setWaterMl(StorageService.getWaterLog(activeCalendarDate));
+      } else {
+        const storedWater = StorageService.getWaterLog(activeCalendarDate);
+        setWaterMl((prev) => (prev !== storedWater ? storedWater : prev));
       }
     };
 
-    const interval = setInterval(checkCalendarRollover, 15000);
+    const interval = setInterval(checkCalendarRollover, 5000);
     document.addEventListener('visibilitychange', checkCalendarRollover);
     window.addEventListener('focus', checkCalendarRollover);
 
@@ -202,7 +205,7 @@ export function App() {
 
   // Cloud Synchronization helper
   const syncToCloud = () => {
-    CloudSync.pushToCloud(StorageService.getFullPayload(todayStr));
+    CloudSync.pushToCloud(StorageService.getFullPayload(formatLocalDate()));
   };
 
   // Handlers
@@ -255,6 +258,7 @@ export function App() {
     const activeToday = formatLocalDate();
     if (activeToday !== todayStr) {
       setTodayStr(activeToday);
+      setMeals(StorageService.getMeals(activeToday));
     }
     const updated = StorageService.addWater(amount, activeToday);
     setWaterMl(updated);
@@ -266,6 +270,7 @@ export function App() {
     const activeToday = formatLocalDate();
     if (activeToday !== todayStr) {
       setTodayStr(activeToday);
+      setMeals(StorageService.getMeals(activeToday));
     }
     StorageService.setWater(0, activeToday);
     setWaterMl(0);

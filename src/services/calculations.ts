@@ -388,14 +388,34 @@ export function filterGpsPoints(
 /**
  * Formats a Date or date string into standard local YYYY-MM-DD format.
  * Prevents timezone offset shifts where UTC conversion (toISOString) subtracts
- * a day for users in timezones ahead of UTC (e.g. IST UTC+5:30).
+ * a day for users in timezones ahead of UTC (e.g. IST UTC+5:30) or behind UTC (e.g. EDT UTC-4).
  */
-export function formatLocalDate(dateInput: Date | string = new Date()): string {
-  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-  if (isNaN(d.getTime())) return '';
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+export function formatLocalDate(dateInput?: Date | string): string {
+  if (!dateInput) {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof dateInput === 'string') {
+    // If it's already a clean YYYY-MM-DD string, NEVER parse with new Date('YYYY-MM-DD') which forces UTC!
+    const cleanMatch = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (cleanMatch) {
+      return `${cleanMatch[1]}-${cleanMatch[2]}-${cleanMatch[3]}`;
+    }
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const year = dateInput.getFullYear();
+  const month = String(dateInput.getMonth() + 1).padStart(2, '0');
+  const day = String(dateInput.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -405,11 +425,16 @@ export function formatLocalDate(dateInput: Date | string = new Date()): string {
  */
 export function getActivityLocalDate(dateOrIsoString?: string | Date): string {
   if (!dateOrIsoString) return '';
-  const d = typeof dateOrIsoString === 'string' ? new Date(dateOrIsoString) : dateOrIsoString;
-  if (isNaN(d.getTime())) {
-    return String(dateOrIsoString).split('T')[0] || '';
+  if (typeof dateOrIsoString === 'string') {
+    const cleanMatch = dateOrIsoString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (cleanMatch && !dateOrIsoString.includes('T')) {
+      return `${cleanMatch[1]}-${cleanMatch[2]}-${cleanMatch[3]}`;
+    }
+    const d = new Date(dateOrIsoString);
+    if (isNaN(d.getTime())) return dateOrIsoString.split('T')[0] || '';
+    return formatLocalDate(d);
   }
-  return formatLocalDate(d);
+  return formatLocalDate(dateOrIsoString);
 }
 
 /**
