@@ -26,6 +26,7 @@ import {
   formatDuration,
   formatPace,
 } from '../../services/calculations';
+import { backgroundWorkout } from '../../services/backgroundWorkout';
 
 interface IndoorActivityModalProps {
   isOpen: boolean;
@@ -87,7 +88,50 @@ export const IndoorActivityModal: React.FC<IndoorActivityModalProps> = ({
   );
 
   const timerIntervalRef = useRef<any>(null);
-  const stepIntervalRef = useRef<any>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const totalPausedMsRef = useRef<number>(0);
+  const pauseStartTimeRef = useRef<number | null>(null);
+  const stepOffsetRef = useRef<number>(0);
+
+  // Synchronizes metrics based on real wall-clock time so timers never freeze
+  // or drift even when the phone is turned off / screen locked.
+  const syncLiveMetrics = () => {
+    if (!isLiveActive || startTimeRef.current === null) return;
+
+    const now = Date.now();
+    const effectiveNow = isPaused && pauseStartTimeRef.current ? pauseStartTimeRef.current : now;
+    const elapsedSec = Math.max(
+      0,
+      Math.floor((effectiveNow - startTimeRef.current - totalPausedMsRef.current) / 1000)
+    );
+    setActiveDurationSeconds(elapsedSec);
+
+    // Continuous cadence step integration
+    const computedSteps = Math.floor(elapsedSec * (targetCadenceSpm / 60)) + stepOffsetRef.current;
+    const finalSteps = Math.max(0, computedSteps);
+    setLiveSteps(finalSteps);
+
+    const distanceM = Math.round(finalSteps * strideLengthMeters);
+    const speed = elapsedSec > 0 ? (distanceM / 1000) / (elapsedSec / 3600) : 4.5;
+    const cals = calculateTreadmillCalories(
+      Math.max(1.0, speed),
+      inclinePercent,
+      profile.currentWeightKg || 70,
+      elapsedSec
+    );
+
+    // Update lock screen media controller (allows user to see progress & pause from lock screen)
+    backgroundWorkout.updateMetrics({
+      title: `Treadmill (${inclinePercent}% Inc)`,
+      type: 'walking',
+      durationSeconds: elapsedSec,
+      caloriesBurned: cals,
+      distanceMeters: distanceM,
+      steps: finalSteps,
+      speedKmh: Math.round(speed * 10) / 10,
+      isPaused,
+    });
+  };
 
   // Reset live tracking when modal closes
   useEffect(() => {
@@ -96,51 +140,92 @@ export const IndoorActivityModal: React.FC<IndoorActivityModalProps> = ({
     }
   }, [isOpen]);
 
-  // Master 1-second workout timer
+  // Master workout timer & background visibility sync
   useEffect(() => {
     if (!isLiveActive || isPaused) {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       return;
     }
+
+    // Run immediate sync on start/resume
+    syncLiveMetrics();
 
     timerIntervalRef.current = setInterval(() => {
-      setActiveDurationSeconds((prev) => prev + 1);
+      syncLiveMetrics();
     }, 1000);
+
+    // When phone wakes up or user returns from screen-off lock, immediately sync to wall-clock
+    const handleVisibilityOrFocus = () => {
+      syncLiveMetrics();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
 
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [isLiveActive, isPaused]);
-
-  // Live Step accumulator based on walking cadence
-  useEffect(() => {
-    if (!isLiveActive || isPaused) {
-      if (stepIntervalRef.current) clearInterval(stepIntervalRef.current);
-      return;
-    }
-
-    // Convert Cadence (steps/min) to millisecond tick per step
-    const msPerStep = Math.round(60000 / Math.max(60, targetCadenceSpm));
-    stepIntervalRef.current = setInterval(() => {
-      setLiveSteps((prev) => prev + 1);
-    }, msPerStep);
-
-    return () => {
-      if (stepIntervalRef.current) clearInterval(stepIntervalRef.current);
-    };
-  }, [isLiveActive, isPaused, targetCadenceSpm]);
+  }, [isLiveActive, isPaused, targetCadenceSpm, inclinePercent, strideLengthMeters]);
 
   // Start / Pause / Reset Handlers
   const handleStartLive = () => {
+    startTimeRef.current = Date.now();
+    totalPausedMsRef.current = 0;
+    pauseStartTimeRef.current = null;
+    stepOffsetRef.current = 0;
+
     setIsLiveActive(true);
     setIsPaused(false);
+
+    // Start background audio session and register lock-screen controls
+    backgroundWorkout.startWorkout({
+      title: `Treadmill Walk (${inclinePercent}% Inc)`,
+      type: 'walking',
+      onPause: () => {
+        pauseStartTimeRef.current = Date.now();
+        setIsPaused(true);
+        backgroundWorkout.pauseWorkout();
+      },
+      onResume: () => {
+        if (pauseStartTimeRef.current) {
+          totalPausedMsRef.current += Date.now() - pauseStartTimeRef.current;
+          pauseStartTimeRef.current = null;
+        }
+        setIsPaused(false);
+        backgroundWorkout.resumeWorkout();
+      },
+      onStop: () => {
+        handleTogglePause();
+      },
+    });
   };
 
   const handleTogglePause = () => {
-    setIsPaused(!isPaused);
+    if (isPaused) {
+      // Resuming
+      if (pauseStartTimeRef.current) {
+        totalPausedMsRef.current += Date.now() - pauseStartTimeRef.current;
+        pauseStartTimeRef.current = null;
+      }
+      setIsPaused(false);
+      backgroundWorkout.resumeWorkout();
+    } else {
+      // Pausing
+      pauseStartTimeRef.current = Date.now();
+      setIsPaused(true);
+      backgroundWorkout.pauseWorkout();
+    }
   };
 
   const handleResetLiveTracker = () => {
+    backgroundWorkout.stopWorkout();
+    startTimeRef.current = null;
+    totalPausedMsRef.current = 0;
+    pauseStartTimeRef.current = null;
+    stepOffsetRef.current = 0;
+
     setIsLiveActive(false);
     setIsPaused(false);
     setActiveDurationSeconds(0);
@@ -149,6 +234,7 @@ export const IndoorActivityModal: React.FC<IndoorActivityModalProps> = ({
 
   // Adjust steps manually (e.g. sync with treadmill console)
   const handleAdjustSteps = (delta: number) => {
+    stepOffsetRef.current += delta;
     setLiveSteps((prev) => Math.max(0, prev + delta));
   };
 
@@ -354,6 +440,19 @@ export const IndoorActivityModal: React.FC<IndoorActivityModalProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Background & Lock Screen Status Notice */}
+                {isLiveActive && (
+                  <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      <span>Background Active • Screen can be turned off</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Lock-screen controls on
+                    </span>
+                  </div>
+                )}
 
                 {/* Primary Bento Live Display: Steps, Distance, Speed, Calories */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">

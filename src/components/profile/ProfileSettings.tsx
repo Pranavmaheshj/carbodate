@@ -989,10 +989,28 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                   key={d.dayNum}
                   type="button"
                   onClick={() => {
-                    if (isRest) {
-                      setRestDays(restDays.filter((x) => x !== d.dayNum));
-                    } else {
-                      setRestDays([...restDays, d.dayNum]);
+                    const nextRest = isRest
+                      ? restDays.filter((x) => x !== d.dayNum)
+                      : [...restDays, d.dayNum];
+                    setRestDays(nextRest);
+                    const updated = { ...profile, restDays: nextRest };
+                    StorageService.saveProfile(updated);
+                    onUpdateProfile(updated);
+
+                    const plan = StorageService.getWorkoutPlan();
+                    if (plan) {
+                      const updatedPlanDays = plan.days.map((pd) => ({
+                        ...pd,
+                        isRestDay: nextRest.includes(pd.dayOfWeek),
+                        split: nextRest.includes(pd.dayOfWeek)
+                          ? pd.split === 'Rest & Recovery' || pd.split === 'Rest'
+                            ? pd.split
+                            : 'Rest & Recovery'
+                          : pd.split === 'Rest & Recovery' || pd.split === 'Rest'
+                          ? 'Full Body Workout'
+                          : pd.split,
+                      }));
+                      StorageService.saveWorkoutPlan({ ...plan, days: updatedPlanDays });
                     }
                   }}
                   className={`py-3 px-1 rounded-2xl text-center flex flex-col items-center justify-center transition active:scale-95 ${

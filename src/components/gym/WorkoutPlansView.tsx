@@ -17,6 +17,7 @@ interface WorkoutPlansViewProps {
   profile: UserProfile;
   onUpdatePlan: (plan: WorkoutPlan) => void;
   onStartScheduledWorkout: (day: WorkoutPlanDay) => void;
+  onUpdateProfile?: (profile: UserProfile) => void;
 }
 
 export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
@@ -24,6 +25,7 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
   profile,
   onUpdatePlan,
   onStartScheduledWorkout,
+  onUpdateProfile,
 }) => {
   const todayDayOfWeek = new Date().getDay();
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(
@@ -73,6 +75,9 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({
     const newRestDays = updatedDays.filter((d) => d.isRestDay).map((d) => d.dayOfWeek);
     const updatedProfile = { ...profile, restDays: newRestDays };
     StorageService.saveProfile(updatedProfile);
+    if (onUpdateProfile) {
+      onUpdateProfile(updatedProfile);
+    }
   };
 
   const handleAddExerciseToDay = () => {

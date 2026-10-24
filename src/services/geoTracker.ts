@@ -64,6 +64,12 @@ export class GeoTrackerService {
   private simIndex = 0;
   private isSimulated = false;
 
+  // Wall-clock tracking for screen-off and background persistence
+  private startTimeMs: number | null = null;
+  private totalPausedMs: number = 0;
+  private pauseStartTimeMs: number | null = null;
+  private visibilityListenerAttached: boolean = false;
+
   public subscribe(listener: TrackerUpdateListener): () => void {
     this.listeners.add(listener);
     listener({ ...this.state });
@@ -127,6 +133,9 @@ export class GeoTrackerService {
     this.stopSimulation();
     this.stopTimer();
     this.stopStepSensor();
+    this.startTimeMs = null;
+    this.totalPausedMs = 0;
+    this.pauseStartTimeMs = null;
 
     this.state = {
       status: 'idle',
@@ -157,6 +166,9 @@ export class GeoTrackerService {
     if (heightCm) this.setUserHeight(heightCm);
     if (type) this.state.activityType = type;
     this.isSimulated = simulated;
+    this.startTimeMs = Date.now();
+    this.totalPausedMs = 0;
+    this.pauseStartTimeMs = null;
 
     this.state = {
       status: 'tracking',
@@ -197,6 +209,7 @@ export class GeoTrackerService {
   public pause(): void {
     if (this.state.status === 'tracking') {
       this.state.status = 'paused';
+      this.pauseStartTimeMs = Date.now();
       this.stopTimer();
       this.notify();
     }
@@ -208,6 +221,10 @@ export class GeoTrackerService {
       this.state.status = 'tracking';
       this.state.isAutoPaused = false;
       this.stationaryCounter = 0;
+      if (this.pauseStartTimeMs) {
+        this.totalPausedMs += Date.now() - this.pauseStartTimeMs;
+        this.pauseStartTimeMs = null;
+      }
       this.startTimer();
       this.notify();
     }
@@ -268,28 +285,47 @@ export class GeoTrackerService {
     return { ...this.state };
   }
 
+  private syncWallClockTime(): void {
+    if (this.state.status === 'tracking' && !this.state.isAutoPaused && this.startTimeMs) {
+      const now = Date.now();
+      const effectiveNow = this.pauseStartTimeMs ? this.pauseStartTimeMs : now;
+      this.state.durationSeconds = Math.max(
+        0,
+        Math.floor((effectiveNow - this.startTimeMs - this.totalPausedMs) / 1000)
+      );
+
+      // Recalculate average pace
+      if (this.state.distanceMeters > 30) {
+        this.state.currentPaceSecPerKm =
+          (this.state.durationSeconds / this.state.distanceMeters) * 1000;
+      }
+
+      // Clean up old step timestamps older than 6 seconds to maintain live cadence
+      this.recentStepTimestamps = this.recentStepTimestamps.filter((t) => now - t <= 6000);
+      if (this.state.activityType !== 'cycling') {
+        this.state.cadenceSpm = Math.round((this.recentStepTimestamps.length / 6) * 60);
+      }
+
+      this.notify();
+    }
+  }
+
   private startTimer(): void {
     if (this.timerId) clearInterval(this.timerId);
+    this.syncWallClockTime();
     this.timerId = window.setInterval(() => {
-      if (this.state.status === 'tracking' && !this.state.isAutoPaused) {
-        this.state.durationSeconds += 1;
-
-        // Recalculate average pace
-        if (this.state.distanceMeters > 30) {
-          this.state.currentPaceSecPerKm =
-            (this.state.durationSeconds / this.state.distanceMeters) * 1000;
-        }
-
-        // Clean up old step timestamps older than 6 seconds to maintain live cadence
-        const now = Date.now();
-        this.recentStepTimestamps = this.recentStepTimestamps.filter((t) => now - t <= 6000);
-        if (this.state.activityType !== 'cycling') {
-          this.state.cadenceSpm = Math.round((this.recentStepTimestamps.length / 6) * 60);
-        }
-
-        this.notify();
-      }
+      this.syncWallClockTime();
     }, 1000);
+
+    if (!this.visibilityListenerAttached && typeof document !== 'undefined') {
+      this.visibilityListenerAttached = true;
+      document.addEventListener('visibilitychange', () => {
+        this.syncWallClockTime();
+      });
+      window.addEventListener('focus', () => {
+        this.syncWallClockTime();
+      });
+    }
   }
 
   private stopTimer(): void {

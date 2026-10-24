@@ -469,6 +469,7 @@ export function App() {
                   currentPlan={workoutPlan}
                   profile={profile}
                   onUpdatePlan={handleUpdateWorkoutPlan}
+                  onUpdateProfile={handleUpdateProfile}
                   onStartScheduledWorkout={(day) => {
                     setActiveGymSplit(day.split);
                     setIsGymLoggerOpen(true);

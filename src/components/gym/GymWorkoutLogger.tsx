@@ -23,6 +23,7 @@ import { SPLIT_OPTIONS, MUSCLE_GROUPS } from '../../data/exerciseLibrary';
 import { RestTimerOverlay } from './RestTimerOverlay';
 import { AddCustomExerciseModal } from './AddCustomExerciseModal';
 import { formatDuration } from '../../services/calculations';
+import { backgroundWorkout } from '../../services/backgroundWorkout';
 
 interface GymWorkoutLoggerProps {
   profile: UserProfile;
@@ -52,14 +53,51 @@ export const GymWorkoutLogger: React.FC<GymWorkoutLoggerProps> = ({
 
   const allExercises = StorageService.getAllExercises();
   const pastSessions = StorageService.getGymSessions();
+  const startTimeRef = React.useRef<number>(Date.now());
 
-  // Live workout timer
+  // Live wall-clock workout timer with background session & lock screen controller
   useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    backgroundWorkout.startWorkout({
+      title: `Gym: ${split || 'Resistance Training'}`,
+      type: 'gym',
+      onPause: () => {
+        backgroundWorkout.pauseWorkout();
+      },
+      onResume: () => {
+        backgroundWorkout.resumeWorkout();
+      },
+      onStop: () => {
+        backgroundWorkout.pauseWorkout();
+      },
+    });
+
+    const syncTimer = () => {
+      const elapsed = Math.max(0, Math.floor((Date.now() - startTimeRef.current) / 1000));
+      setElapsedSeconds(elapsed);
+
+      const mins = elapsed / 60;
+      const cals = Math.round(5.5 * (profile.currentWeightKg || 75) * (mins / 60));
+      backgroundWorkout.updateMetrics({
+        title: `Gym: ${split || 'Workout'}`,
+        type: 'gym',
+        durationSeconds: elapsed,
+        caloriesBurned: cals,
+        isPaused: false,
+      });
+    };
+
+    const timer = setInterval(syncTimer, 1000);
+    const handleVis = () => syncTimer();
+    document.addEventListener('visibilitychange', handleVis);
+    window.addEventListener('focus', handleVis);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVis);
+      window.removeEventListener('focus', handleVis);
+      backgroundWorkout.stopWorkout();
+    };
+  }, [split, profile.currentWeightKg]);
 
   // Filter exercises
   const filteredLibrary = allExercises.filter((ex) => {

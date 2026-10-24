@@ -13,6 +13,7 @@ import {
   Info,
   Zap,
   Award,
+  Moon,
 } from 'lucide-react';
 import { WeeklyDeficitSummary, DayDeficitRecord } from '../../types';
 
@@ -20,12 +21,14 @@ interface WeeklyDeficitWidgetProps {
   weeklySummary: WeeklyDeficitSummary;
   onSelectCatchupDay?: (dayName: string) => void;
   onApplyRolloverTarget?: (newTarget: number) => void;
+  onOpenRestDaysModal?: () => void;
 }
 
 export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
   weeklySummary,
   onSelectCatchupDay,
   onApplyRolloverTarget,
+  onOpenRestDaysModal,
 }) => {
   const [selectedCatchupDay, setSelectedCatchupDay] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'balance' | 'calendar'>('balance');
@@ -130,14 +133,27 @@ export const WeeklyDeficitWidget: React.FC<WeeklyDeficitWidgetProps> = ({
 
       {/* 7-Day Interactive Week Calendar Strip */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-heading font-black text-clay-text dark:text-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-heading font-black text-clay-text dark:text-slate-200">
           <span className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-clay-lime-dark dark:text-clay-lime" />
             <span>Current Week Pacing (Mon – Sun):</span>
           </span>
-          <span className="text-[11px] text-slate-400 font-normal">
-            Target: ~{dailyDeficitTarget} kcal/day deficit
-          </span>
+          <div className="flex items-center gap-2">
+            {onOpenRestDaysModal && (
+              <button
+                type="button"
+                onClick={onOpenRestDaysModal}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl clay-sunken text-[11px] font-black text-purple-700 dark:text-purple-300 hover:scale-105 transition active:scale-95"
+                title="Configure your scheduled weekly rest days"
+              >
+                <Moon className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                <span>Set Rest Days</span>
+              </button>
+            )}
+            <span className="text-[11px] text-slate-400 font-normal hidden sm:inline">
+              Target: ~{dailyDeficitTarget} kcal/day deficit
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2">

@@ -32,6 +32,7 @@ import {
   formatPace,
   estimateActivityCalories,
 } from '../../services/calculations';
+import { backgroundWorkout } from '../../services/backgroundWorkout';
 
 interface LiveGpsTrackerProps {
   activityType: ActivityType;
@@ -74,13 +75,36 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
     geoTracker.setUserHeight(profile.heightCm || 175);
     const unsubscribe = geoTracker.subscribe((state) => {
       setTrackerState(state);
+      if (state.status === 'tracking' || state.status === 'paused') {
+        const durationM = state.durationSeconds / 60;
+        const cals = estimateActivityCalories(
+          selectedType,
+          durationM,
+          profile.currentWeightKg || 75,
+          'default',
+          0,
+          state.elevationGainMeters,
+          state.steps
+        );
+        backgroundWorkout.updateMetrics({
+          title: `Outdoor ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`,
+          type: selectedType,
+          durationSeconds: state.durationSeconds,
+          caloriesBurned: cals,
+          distanceMeters: state.distanceMeters,
+          steps: state.steps,
+          speedKmh: Math.round(state.currentSpeedKmh * 10) / 10,
+          isPaused: state.status === 'paused' || state.isAutoPaused,
+        });
+      }
     });
 
     return () => {
       unsubscribe();
       geoTracker.finish();
+      backgroundWorkout.stopWorkout();
     };
-  }, [profile.heightCm]);
+  }, [profile.heightCm, selectedType, profile.currentWeightKg]);
 
   // Leaflet Map Init (100% Free OpenStreetMap - No Google API Key Needed)
   useEffect(() => {
@@ -196,6 +220,13 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
         if (prev === null || prev <= 1) {
           clearInterval(interval);
           geoTracker.start(selectedType, isSimulated, profile.heightCm);
+          backgroundWorkout.startWorkout({
+            title: `Outdoor ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`,
+            type: selectedType,
+            onPause: () => geoTracker.pause(),
+            onResume: () => geoTracker.resume(),
+            onStop: () => geoTracker.pause(),
+          });
           return null;
         }
         return prev - 1;
@@ -227,6 +258,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
   );
 
   const handleFinish = async () => {
+    backgroundWorkout.stopWorkout();
     const finalState = await geoTracker.finish();
     const distanceKm = finalState.distanceMeters / 1000;
     const avgSpeed =

@@ -29,7 +29,9 @@ import {
 import { CalorieRing } from '../common/CalorieRing';
 import { TodayWorkoutWidget } from './TodayWorkoutWidget';
 import { WeightLogModal } from './WeightLogModal';
+import { RestDaysModal } from './RestDaysModal';
 import { WeeklyDeficitWidget } from './WeeklyDeficitWidget';
+import { StorageService } from '../../services/storage';
 import { formatDuration, calculateWeeklyDeficitSummary, formatLocalDate } from '../../services/calculations';
 
 interface DashboardViewProps {
@@ -72,6 +74,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onUpdateProfile,
 }) => {
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+  const [isRestDaysModalOpen, setIsRestDaysModalOpen] = useState(false);
 
   // Compute today's totals
   const todayDateStr = formatLocalDate();
@@ -83,21 +86,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       : null;
 
   const handleToggleTodayRest = () => {
-    if (!workoutPlan || !onUpdateWorkoutPlan) return;
     const todayDayOfWeek = new Date().getDay();
-    const updatedDays = workoutPlan.days.map((d) =>
-      d.dayOfWeek === todayDayOfWeek ? { ...d, isRestDay: !d.isRestDay } : d
-    );
-    const updatedPlan = { ...workoutPlan, days: updatedDays };
-    onUpdateWorkoutPlan(updatedPlan);
+    const currentRest = profile?.restDays || [0, 4];
+    const isNowRest = !currentRest.includes(todayDayOfWeek);
+    const newRest = isNowRest
+      ? Array.from(new Set([...currentRest, todayDayOfWeek]))
+      : currentRest.filter((x) => x !== todayDayOfWeek);
 
     if (onUpdateProfile && profile) {
-      const isNowRest = updatedDays.find((d) => d.dayOfWeek === todayDayOfWeek)?.isRestDay;
-      const currentRest = profile.restDays || [];
-      const newRest = isNowRest
-        ? Array.from(new Set([...currentRest, todayDayOfWeek]))
-        : currentRest.filter((x) => x !== todayDayOfWeek);
-      onUpdateProfile({ ...profile, restDays: newRest });
+      const updatedProfile = { ...profile, restDays: newRest };
+      StorageService.saveProfile(updatedProfile);
+      onUpdateProfile(updatedProfile);
+    }
+
+    if (workoutPlan && onUpdateWorkoutPlan) {
+      const updatedDays = workoutPlan.days.map((d) =>
+        d.dayOfWeek === todayDayOfWeek ? { ...d, isRestDay: isNowRest } : d
+      );
+      const updatedPlan = { ...workoutPlan, days: updatedDays };
+      StorageService.saveWorkoutPlan(updatedPlan);
+      onUpdateWorkoutPlan(updatedPlan);
     }
   };
   const todayMeals = meals.filter((m) => m.date === todayDateStr);
@@ -335,14 +343,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 2.5 WEEKLY CALORIE DEFICIT & ROLLOVER ENGINE */}
-      <WeeklyDeficitWidget weeklySummary={weeklySummary} />
+      <WeeklyDeficitWidget
+        weeklySummary={weeklySummary}
+        onOpenRestDaysModal={() => setIsRestDaysModalOpen(true)}
+      />
 
       {/* 3. TODAY'S SCHEDULED WORKOUT (Lilac Bento Tile) */}
       <TodayWorkoutWidget
         plan={workoutPlan}
         onStartWorkout={onStartScheduledWorkout}
         onToggleRestDay={handleToggleTodayRest}
-        onNavigateToPlans={() => onNavigateTab('gym')}
+        onNavigateToPlans={() => setIsRestDaysModalOpen(true)}
       />
 
       {/* 4. BENTO GRID: Weekly Puffy Activity Bars + Streak (Butter) + Weight Progression */}
@@ -621,6 +632,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         onSaveWeight={onSaveWeight}
         profile={profile}
       />
+
+      {/* Rest Days Configuration Modal */}
+      {onUpdateProfile && onUpdateWorkoutPlan && (
+        <RestDaysModal
+          isOpen={isRestDaysModalOpen}
+          onClose={() => setIsRestDaysModalOpen(false)}
+          profile={profile}
+          workoutPlan={workoutPlan}
+          onUpdateProfile={onUpdateProfile}
+          onUpdateWorkoutPlan={onUpdateWorkoutPlan}
+        />
+      )}
     </div>
   );
 };

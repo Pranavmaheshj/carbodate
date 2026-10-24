@@ -140,7 +140,43 @@ export const StorageService = {
 
   // WORKOUT PLAN
   getWorkoutPlan(): WorkoutPlan | null {
-    return getJSON<WorkoutPlan | null>(STORAGE_KEYS.WORKOUT_PLAN, null);
+    const stored = getJSON<WorkoutPlan | null>(STORAGE_KEYS.WORKOUT_PLAN, null);
+    if (stored) return stored;
+
+    // Generate sensible default 7-day routine so TodayWorkoutWidget and rest days work out of the box
+    const profile = this.getProfile();
+    const restDays = Array.isArray(profile?.restDays) ? profile.restDays : [0, 4]; // Sunday & Thursday default
+
+    const dayTemplates = [
+      { dayOfWeek: 1, dayName: 'Monday', split: 'Push (Chest & Triceps)', ex: ['Barbell Bench Press', 'Incline Dumbbell Press', 'Tricep Pushdown'] },
+      { dayOfWeek: 2, dayName: 'Tuesday', split: 'Pull (Back & Biceps)', ex: ['Lat Pulldown', 'Barbell Bent-Over Row', 'Barbell Bicep Curl'] },
+      { dayOfWeek: 3, dayName: 'Wednesday', split: 'Legs & Core', ex: ['Barbell Back Squat', 'Romanian Deadlift (RDL)'] },
+      { dayOfWeek: 4, dayName: 'Thursday', split: 'Rest & Recovery', ex: [] },
+      { dayOfWeek: 5, dayName: 'Friday', split: 'Shoulders & Arms', ex: ['Overhead Barbell Press', 'Dumbbell Lateral Raise'] },
+      { dayOfWeek: 6, dayName: 'Saturday', split: 'Full Body Conditioning', ex: ['Kettlebell Swings', 'Push-ups'] },
+      { dayOfWeek: 0, dayName: 'Sunday', split: 'Rest & Recovery', ex: [] },
+    ];
+
+    const defaultPlan: WorkoutPlan = {
+      id: 'plan_default',
+      userId: profile?.id || 'usr_carbodate',
+      name: 'Dynamic Weekly Routine',
+      description: 'Dynamic weekly resistance & recovery routine',
+      createdAt: new Date().toISOString(),
+      days: dayTemplates.map((t) => {
+        const isRest = restDays.includes(t.dayOfWeek);
+        return {
+          dayOfWeek: t.dayOfWeek,
+          dayName: t.dayName,
+          split: isRest ? 'Rest & Recovery' : t.split,
+          isRestDay: isRest,
+          exercises: isRest ? [] : t.ex.map((name) => ({ name, muscleGroup: 'Full Body' as any, targetSets: 3, targetReps: 10 })),
+        };
+      }),
+    };
+
+    setJSON(STORAGE_KEYS.WORKOUT_PLAN, defaultPlan);
+    return defaultPlan;
   },
 
   saveWorkoutPlan(plan: WorkoutPlan): void {
