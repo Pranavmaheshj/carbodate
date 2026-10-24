@@ -52,7 +52,10 @@ class BackgroundWorkoutManager {
     // Request Notification permission silently if not already asked
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       try {
-        Notification.requestPermission().catch(() => {});
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted' && this.lastMetrics) {
+          this.updateMetrics(this.lastMetrics);
+        }
       } catch {}
     }
 
@@ -64,6 +67,19 @@ class BackgroundWorkoutManager {
 
     // 3. Register Lock-Screen MediaSession action handlers
     this.setupMediaSession(options.title, options.type);
+
+    // 4. Immediately initialize and display ongoing notification card in notification shade & lockscreen
+    this.updateMetrics({
+      title: options.title,
+      type: options.type,
+      durationSeconds: 0,
+      caloriesBurned: 0,
+      distanceMeters: 0,
+      steps: 0,
+      speedKmh: 0,
+      paceMinPerKm: '--:--',
+      isPaused: false,
+    });
 
     return true;
   }
@@ -134,7 +150,10 @@ class BackgroundWorkoutManager {
 
     try {
       if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.ready;
+        let registration = await navigator.serviceWorker.getRegistration();
+        if (!registration || !registration.showNotification) {
+          registration = await navigator.serviceWorker.ready;
+        }
         if (registration && registration.showNotification) {
           const statusPrefix = metrics.isPaused ? '⏸️ PAUSED' : '⚡ RECORDING';
           const bodyText = `${distStr} • Pace: ${paceStr} • ${calStr} • ${speedStr}`;

@@ -421,6 +421,7 @@ export class GeoTrackerService {
   private handleDeviceMotion = (e: DeviceMotionEvent) => {
     if (this.state.status !== 'tracking') return;
     if (this.state.activityType === 'cycling') return; // Cycling doesn't count walking steps
+    if (this.state.isAutoPaused) return; // Never count steps or auto-resume while paused
 
     const acc = e.accelerationIncludingGravity || e.acceleration;
     if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
@@ -428,21 +429,26 @@ export class GeoTrackerService {
     const magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
     const now = Date.now();
 
-    // Rhythmic step peak detection:
-    // Requires a debounce interval of at least 280ms (max ~214 steps/min)
-    // and distinct vertical footstep impulse above 11.6 m/s² following a dip <= 10.1 m/s²
-    if (magnitude > 11.6 && this.lastAccelMagnitude <= 10.1 && now - this.lastAccelTime > 280) {
+    // Rhythmic human footstep filtering:
+    // Natural human footsteps range between 10.8 and 16.8 m/s² (1.1g to 1.7g).
+    // Violent shakes, phone fidgeting, or rapid twitches exceed 17.0 m/s² and are rejected.
+    if (magnitude > 17.0 || magnitude < 10.8) {
+      this.lastAccelMagnitude = magnitude;
+      return;
+    }
+
+    // Step cadence interval: at least 340ms (max ~176 steps/min)
+    if (magnitude > 11.8 && this.lastAccelMagnitude <= 10.4 && now - this.lastAccelTime > 340) {
       const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh) || 0.73;
 
-      // ANTI-SHAKE MAP CROSS-VALIDATION:
-      // If user is stationary on the map (distance < 2.5m or speed < 0.7 km/h),
-      // shaking phone or wearable will NOT count as steps!
-      const isStationaryOnMap = this.state.distanceMeters < 2.5 || (this.state.currentSpeedKmh < 0.7 && !this.state.isAutoPaused);
+      // STRICT GROUND TRUTH MAP CROSS-VALIDATION:
+      // If user is stationary on the map (distance < 2.5m or speed < 0.9 km/h),
+      // shaking phone or wearable will NEVER count as steps!
+      const isStationaryOnMap = this.state.distanceMeters < 2.5 || this.state.currentSpeedKmh < 0.9;
       const expectedSteps = Math.round(this.state.distanceMeters / strideMeters);
-      const maxAllowedSteps = expectedSteps + 2;
 
-      // When stationary or when steps already match/exceed plausible distance, discard fake shake!
-      if (isStationaryOnMap || this.state.steps >= maxAllowedSteps) {
+      // Steps can NEVER exceed what actual GPS ground track distance physically justifies!
+      if (isStationaryOnMap || this.state.steps >= expectedSteps) {
         this.lastAccelMagnitude = magnitude;
         return;
       }
@@ -450,13 +456,6 @@ export class GeoTrackerService {
       this.state.steps += 1;
       this.lastAccelTime = now;
       this.recentStepTimestamps.push(now);
-
-      // User is moving by taking steps: record movement & auto-resume if paused!
-      this.lastMovementTimeMs = now;
-      if (this.state.isAutoPaused) {
-        this.triggerAutoResume(now);
-      }
-
       this.notify();
     }
     this.lastAccelMagnitude = magnitude;
@@ -575,10 +574,10 @@ export class GeoTrackerService {
       const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh) || 0.73;
       const expectedSteps = Math.round(this.state.distanceMeters / strideMeters);
 
-      if (this.state.distanceMeters <= 2) {
+      if (this.state.distanceMeters <= 2.5) {
         // Stationary on map = 0 steps (completely removes any false shake artifacts)
         this.state.steps = 0;
-      } else if (Math.abs(this.state.steps - expectedSteps) > 2) {
+      } else {
         // Reconcile and snap steps to match true ground track distance exactly
         this.state.steps = expectedSteps;
       }

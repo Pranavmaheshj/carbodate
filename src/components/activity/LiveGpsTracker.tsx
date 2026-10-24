@@ -63,6 +63,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
   const [isSimulated, setIsSimulated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'map' | 'splits'>('map');
   const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownIntervalRef = useRef<any>(null);
   const [lapToast, setLapToast] = useState<string | null>(null);
   const lapToastTimeoutRef = useRef<any>(null);
 
@@ -255,7 +256,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
   // Start with 3-second animated countdown
   const handleTriggerStart = () => {
-    // Synchronously request iOS DeviceMotionEvent permissions during the direct user tap gesture
+    // 1. Synchronously request iOS DeviceMotionEvent permissions during the direct user tap gesture
     if (
       typeof (DeviceMotionEvent as any) !== 'undefined' &&
       typeof (DeviceMotionEvent as any).requestPermission === 'function'
@@ -267,19 +268,34 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
       }
     }
 
+    // 2. Synchronously request system notification permission directly in user tap gesture
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        Notification.requestPermission().catch(() => {});
+      } catch (e) {}
+    }
+
+    // 3. Immediately start background workout session (audio + lock screen + notification bar)
+    // Synchronously starts the silent audio loop so iOS & Android won't block it for autoplay
+    backgroundWorkout.startWorkout({
+      title: `Outdoor ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`,
+      type: selectedType,
+      onPause: () => geoTracker.pause(),
+      onResume: () => geoTracker.resume(),
+      onStop: () => geoTracker.pause(),
+    });
+
+    // 4. Begin 3-second visual countdown before activating GPS movement tracker
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     setCountdown(3);
-    const interval = setInterval(() => {
+    countdownIntervalRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev === null || prev <= 1) {
-          clearInterval(interval);
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
           geoTracker.start(selectedType, isSimulated, profile.heightCm);
-          backgroundWorkout.startWorkout({
-            title: `Outdoor ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`,
-            type: selectedType,
-            onPause: () => geoTracker.pause(),
-            onResume: () => geoTracker.resume(),
-            onStop: () => geoTracker.pause(),
-          });
           return null;
         }
         return prev - 1;
@@ -462,6 +478,10 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
           <button
             onClick={() => {
+              if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current);
+                countdownIntervalRef.current = null;
+              }
               if (trackerState.status === 'tracking') {
                 if (window.confirm('Do you want to discard this active workout?')) {
                   geoTracker.reset();
