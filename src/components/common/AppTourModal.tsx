@@ -60,7 +60,7 @@ const TOUR_STEPS: TourStep[] = [
     accentText: 'text-clay-text',
     features: [
       'Accurate personalized BMR, TDEE, and daily deficit targets',
-      'Free OpenStreetMap live GPS tracker (no API key needed)',
+      'Real-time OpenStreetMap live GPS route tracker',
       'Live steps, speed, and elevation gain calorie calculation',
       'Instant food & drink nutrition calculation for any meal',
     ],

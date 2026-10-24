@@ -392,7 +392,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
 
             <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
               <span className="text-emerald-600 dark:text-emerald-400">
-                ✓ Free GPS Map • No API Key Needed
+                Real-Time GPS Route
               </span>
               {trackerState.wakeLockActive && (
                 <span className="flex items-center gap-0.5 text-teal-600 dark:text-teal-400">
