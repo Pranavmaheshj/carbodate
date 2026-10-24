@@ -341,9 +341,9 @@ export class GeoTrackerService {
     }
   }
 
-  // Physical motion step counting for real devices with GPS cross-validation to eliminate fake shaking steps
+  // Physical motion step counting with strict GPS cross-validation to eliminate fake shaking steps
   private handleDeviceMotion = (e: DeviceMotionEvent) => {
-    if (this.state.status !== 'tracking') return;
+    if (this.state.status !== 'tracking' || this.state.isAutoPaused) return;
     if (this.state.activityType === 'cycling') return; // Cycling doesn't count walking steps
 
     const acc = e.accelerationIncludingGravity || e.acceleration;
@@ -354,20 +354,19 @@ export class GeoTrackerService {
 
     // Rhythmic step peak detection:
     // Requires a debounce interval of at least 280ms (max ~214 steps/min)
-    // and distinct swing above 11.4 m/s² following a dip near gravity (<= 10.3 m/s²)
-    if (magnitude > 11.4 && this.lastAccelMagnitude <= 10.3 && now - this.lastAccelTime > 280) {
-      // GPS Corroboration: Prevent fake steps from phone shaking!
-      // If we have GPS route points and the phone is stationary (GPS speed < 0.8 km/h):
-      // calculate the maximum physically plausible steps for the distance traversed.
-      const minStrideMeters = 0.45;
-      const maxAllowedStepsFromGps = this.state.distanceMeters > 5
-        ? Math.floor(this.state.distanceMeters / minStrideMeters) + 12
-        : 15;
+    // and distinct vertical footstep impulse above 11.6 m/s² following a dip <= 10.1 m/s²
+    if (magnitude > 11.6 && this.lastAccelMagnitude <= 10.1 && now - this.lastAccelTime > 280) {
+      const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh) || 0.73;
 
-      const isStationaryGps = this.state.routePoints.length >= 2 && this.state.currentSpeedKmh < 0.8;
+      // ANTI-SHAKE MAP CROSS-VALIDATION:
+      // If user is stationary on the map (distance < 2.5m or speed < 0.7 km/h),
+      // shaking phone or wearable will NOT count as steps!
+      const isStationaryOnMap = this.state.distanceMeters < 2.5 || this.state.currentSpeedKmh < 0.7;
+      const expectedSteps = Math.round(this.state.distanceMeters / strideMeters);
+      const maxAllowedSteps = expectedSteps + 2;
 
-      if (isStationaryGps && this.state.steps >= maxAllowedStepsFromGps) {
-        // Discard fake shake step since phone is physically stationary over ground!
+      // When stationary or when steps already match/exceed plausible distance, discard fake shake!
+      if (isStationaryOnMap || this.state.steps >= maxAllowedSteps) {
         this.lastAccelMagnitude = magnitude;
         return;
       }
@@ -376,11 +375,6 @@ export class GeoTrackerService {
       this.lastAccelTime = now;
       this.recentStepTimestamps.push(now);
 
-      // Instant Auto-Resume: If auto-paused, walking footstep immediately wakes the tracker!
-      if (this.state.isAutoPaused) {
-        this.state.isAutoPaused = false;
-        this.stationaryCounter = 0;
-      }
       this.notify();
     }
     this.lastAccelMagnitude = magnitude;
@@ -428,7 +422,7 @@ export class GeoTrackerService {
     };
 
     const lastPoint = this.state.routePoints[this.state.routePoints.length - 1];
-    const { isValid, distanceDelta } = filterGpsPoints(newPoint, lastPoint);
+    const { isValid, distanceDelta } = filterGpsPoints(newPoint, lastPoint, this.state.activityType);
 
     if (!isValid && this.state.routePoints.length > 0) return;
 
@@ -471,12 +465,18 @@ export class GeoTrackerService {
     this.state.distanceMeters += distanceDelta;
     this.state.routePoints.push(newPoint);
 
-    // Stride-based Step Calculation Fallback (guarantees steps always sync to distance on all devices)
-    if (this.state.activityType !== 'cycling' && distanceDelta > 0) {
-      const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh) || 0.75;
-      const expectedStepsFromDistance = Math.round(this.state.distanceMeters / strideMeters);
-      if (this.state.steps < expectedStepsFromDistance) {
-        this.state.steps = expectedStepsFromDistance;
+    // Harmonized Step & Distance Sensor Fusion:
+    // Cross-validate steps against ground map distance so they are 100% physically consistent and similar!
+    if (this.state.activityType !== 'cycling') {
+      const strideMeters = calculateStrideLengthMeters(this.userHeightCm, this.state.currentSpeedKmh) || 0.73;
+      const expectedSteps = Math.round(this.state.distanceMeters / strideMeters);
+
+      if (this.state.distanceMeters <= 2) {
+        // Stationary on map = 0 steps (completely removes any false shake artifacts)
+        this.state.steps = 0;
+      } else if (Math.abs(this.state.steps - expectedSteps) > 2) {
+        // Reconcile and snap steps to match true ground track distance exactly
+        this.state.steps = expectedSteps;
       }
     }
 

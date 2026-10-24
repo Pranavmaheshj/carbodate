@@ -304,7 +304,11 @@ export function formatDuration(totalSeconds: number): string {
 }
 
 // Filter GPS points to eliminate jitter and noise while keeping natural walking and running movements
-export function filterGpsPoints(newPoint: RoutePoint, lastPoint?: RoutePoint): {
+export function filterGpsPoints(
+  newPoint: RoutePoint,
+  lastPoint?: RoutePoint,
+  activityType?: ActivityType
+): {
   isValid: boolean;
   distanceDelta: number;
 } {
@@ -320,19 +324,35 @@ export function filterGpsPoints(newPoint: RoutePoint, lastPoint?: RoutePoint): {
     newPoint.lng
   );
 
-  // Relaxed accuracy threshold for mobile devices: accept points up to 65m
-  if (newPoint.accuracy && newPoint.accuracy > 65) {
+  // 1. Accuracy threshold check: discard readings with accuracy error worse than 45m
+  if (newPoint.accuracy && newPoint.accuracy > 45) {
     return { isValid: false, distanceDelta: 0 };
   }
 
-  // Micro jitter check: only ignore static zero-movement drifts (under 0.5m in under 1 second)
-  if (distMeters < 0.5 && timeDiffSec < 1.0) {
-    return { isValid: false, distanceDelta: 0 };
-  }
+  // 2. Maximum plausible speed filter tailored to human biomechanics:
+  // Walking: max ~9.5 km/h (2.65 m/s). Anything faster is a GPS jump/glitch!
+  // Running/Jogging: max ~25 km/h (6.95 m/s).
+  // Cycling: max ~65 km/h (18.0 m/s).
+  const maxSpeedMps = activityType === 'walking'
+    ? 2.65
+    : activityType === 'running' || activityType === 'jogging'
+    ? 6.95
+    : 18.0;
 
-  // Speed filter: reject GPS teleport glitches (> 65 km/h approx 18 m/s for outdoor sports)
   const speedMps = distMeters / timeDiffSec;
-  if (speedMps > 18) {
+  if (speedMps > maxSpeedMps) {
+    return { isValid: false, distanceDelta: 0 };
+  }
+
+  // 3. Stationary GPS drift filter:
+  // When standing still, GPS coordinates drift in small random bubbles (~1-2m).
+  // If displacement is small and accuracy is wide (> 12m) or speed is below human walking creep (< 0.6 km/h = 0.17 m/s),
+  // do NOT add false distance!
+  if (distMeters < 1.8 && (newPoint.accuracy || 10) > 12) {
+    return { isValid: false, distanceDelta: 0 };
+  }
+
+  if (distMeters < 0.6 && timeDiffSec < 1.5) {
     return { isValid: false, distanceDelta: 0 };
   }
 
