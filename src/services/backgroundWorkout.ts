@@ -247,3 +247,4 @@ class BackgroundWorkoutManager {
 }
 
 export const backgroundWorkout = new BackgroundWorkoutManager();
+

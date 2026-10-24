@@ -323,9 +323,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             onClick={() => onAddWater(250)}
             className="p-3 sm:p-3.5 rounded-clay-btn clay-btn-coral text-clay-text font-heading font-black text-xs flex items-center justify-center gap-2 transition active:scale-95"
+            title="Log 250ml water for today"
           >
             <Droplets className="w-4 h-4 stroke-[2.5]" />
-            <span>+250ml Water</span>
+            <span>+250ml Water {waterCurrentMl > 0 ? `(${waterCurrentMl} ml)` : ''}</span>
           </button>
 
           <button

@@ -21,6 +21,7 @@ const STORAGE_KEYS = {
   MEALS: 'carbodate_meals_v2',
   WEIGHTS: 'carbodate_weights_v2',
   WATER: 'carbodate_water_v2',
+  WATER_HISTORY: 'carbodate_water_history_v2',
   BADGES: 'carbodate_badges_v2',
   CUSTOM_EXERCISES: 'carbodate_custom_exercises_v2',
   IS_INITIALIZED: 'carbodate_is_initialized_v2',
@@ -211,31 +212,51 @@ export const StorageService = {
     setJSON(STORAGE_KEYS.MEALS, updated);
   },
 
-  // WATER
+  // WATER & HYDRATION (Date-keyed dictionary ensures each day starts at 0ml cleanly)
   getWaterLog(dateStr?: string): number {
-    const todayStr = dateStr || formatLocalDate();
-    const log = getJSON<WaterLog | null>(STORAGE_KEYS.WATER, null);
-    if (log && log.date === todayStr) {
-      return log.amountMl;
+    const targetDate = dateStr || formatLocalDate();
+    const history = getJSON<Record<string, number>>(STORAGE_KEYS.WATER_HISTORY, {});
+    if (typeof history[targetDate] === 'number') {
+      return history[targetDate];
+    }
+
+    // Migration fallback from single-record legacy WATER key
+    const legacy = getJSON<WaterLog | null>(STORAGE_KEYS.WATER, null);
+    if (legacy && legacy.date === targetDate) {
+      return legacy.amountMl || 0;
     }
     return 0;
   },
 
+  getAllWaterLogs(): Record<string, number> {
+    const history = getJSON<Record<string, number>>(STORAGE_KEYS.WATER_HISTORY, {});
+    const legacy = getJSON<WaterLog | null>(STORAGE_KEYS.WATER, null);
+    if (legacy && legacy.date && typeof history[legacy.date] !== 'number') {
+      history[legacy.date] = legacy.amountMl || 0;
+    }
+    return history;
+  },
+
   setWater(amountMl: number, dateStr?: string): void {
-    const todayStr = dateStr || formatLocalDate();
+    const targetDate = dateStr || formatLocalDate();
+    const history = getJSON<Record<string, number>>(STORAGE_KEYS.WATER_HISTORY, {});
+    history[targetDate] = Math.max(0, amountMl);
+    setJSON(STORAGE_KEYS.WATER_HISTORY, history);
+
+    // Keep legacy key updated for current active day
     setJSON<WaterLog>(STORAGE_KEYS.WATER, {
-      id: `water_${todayStr}`,
+      id: `water_${targetDate}`,
       userId: 'usr_carbodate',
-      date: todayStr,
+      date: targetDate,
       amountMl: Math.max(0, amountMl),
     });
   },
 
   addWater(amountMl: number, dateStr?: string): number {
-    const todayStr = dateStr || formatLocalDate();
-    const current = this.getWaterLog(todayStr);
+    const targetDate = dateStr || formatLocalDate();
+    const current = this.getWaterLog(targetDate);
     const updatedAmount = Math.max(0, current + amountMl);
-    this.setWater(updatedAmount, todayStr);
+    this.setWater(updatedAmount, targetDate);
     return updatedAmount;
   },
 
@@ -287,6 +308,8 @@ export const StorageService = {
       meals: this.getMeals(),
       weights: this.getWeightRecords(),
       waterMl: this.getWaterLog(todayStr),
+      waterDate: todayStr,
+      waterHistory: this.getAllWaterLogs(),
       badges: this.getBadges(),
       lastSyncedAt: new Date().toISOString(),
     };
@@ -300,9 +323,22 @@ export const StorageService = {
     if (payload.meals) this.setMeals(payload.meals);
     if (payload.weights) this.setWeights(payload.weights);
     if (payload.badges) this.setBadges(payload.badges);
-    if (typeof payload.waterMl === 'number') {
-      const todayStr = formatLocalDate();
-      this.setWater(payload.waterMl, todayStr);
+
+    // Hydrate water logs safely without overwriting today with yesterday's value
+    const currentToday = formatLocalDate();
+    if (payload.waterHistory && typeof payload.waterHistory === 'object') {
+      const history = getJSON<Record<string, number>>(STORAGE_KEYS.WATER_HISTORY, {});
+      const merged = { ...history, ...payload.waterHistory };
+      setJSON(STORAGE_KEYS.WATER_HISTORY, merged);
+      // Update legacy key for current day
+      if (typeof merged[currentToday] === 'number') {
+        this.setWater(merged[currentToday], currentToday);
+      }
+    } else if (typeof payload.waterMl === 'number') {
+      // ONLY set today if cloud payload explicitly matches today's date!
+      if (payload.waterDate && payload.waterDate === currentToday) {
+        this.setWater(payload.waterMl, currentToday);
+      }
     }
   },
 

@@ -63,6 +63,7 @@ export function App() {
           setWeights(cloudData.weights || []);
           setWorkoutPlan(cloudData.workoutPlan || null);
           setBadges(cloudData.badges || StorageService.getBadges());
+          setWaterMl(StorageService.getWaterLog(formatLocalDate()));
         }
       }
     });
@@ -80,6 +81,7 @@ export function App() {
           setWeights(cloudData.weights || []);
           setWorkoutPlan(cloudData.workoutPlan || null);
           setBadges(cloudData.badges || StorageService.getBadges());
+          setWaterMl(StorageService.getWaterLog(formatLocalDate()));
         }
       }
     });
@@ -130,8 +132,8 @@ export function App() {
     }
   });
 
-  // App Data Collections
-  const todayStr = formatLocalDate();
+  // App Data Collections (dynamic local date tracking with auto-midnight rollover)
+  const [todayStr, setTodayStr] = useState<string>(() => formatLocalDate());
   const [activities, setActivities] = useState<ActivityRecord[]>(() => StorageService.getActivities());
   const [gymSessions, setGymSessions] = useState<GymWorkoutSession[]>(() => StorageService.getGymSessions());
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(() => StorageService.getWorkoutPlan());
@@ -140,6 +142,29 @@ export function App() {
   const [weights, setWeights] = useState<WeightRecord[]>(() => StorageService.getWeightRecords());
   const [waterMl, setWaterMl] = useState<number>(() => StorageService.getWaterLog(todayStr));
   const [badges, setBadges] = useState<MilestoneBadge[]>(() => StorageService.getBadges());
+
+  // Automatic calendar day rollover detector: ensures water, meals, and charts reset cleanly
+  // for the new day when phone wakes up or passes midnight without requiring app refresh.
+  useEffect(() => {
+    const checkCalendarRollover = () => {
+      const activeCalendarDate = formatLocalDate();
+      if (activeCalendarDate !== todayStr) {
+        setTodayStr(activeCalendarDate);
+        setMeals(StorageService.getMeals(activeCalendarDate));
+        setWaterMl(StorageService.getWaterLog(activeCalendarDate));
+      }
+    };
+
+    const interval = setInterval(checkCalendarRollover, 15000);
+    document.addEventListener('visibilitychange', checkCalendarRollover);
+    window.addEventListener('focus', checkCalendarRollover);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', checkCalendarRollover);
+      window.removeEventListener('focus', checkCalendarRollover);
+    };
+  }, [todayStr]);
 
   // Compute live calculations
   const calculations: BodyCalculations = computeProfileCalculations(profile || {});
@@ -227,14 +252,22 @@ export function App() {
   };
 
   const handleAddWater = (amount: number) => {
-    const updated = StorageService.addWater(amount, todayStr);
+    const activeToday = formatLocalDate();
+    if (activeToday !== todayStr) {
+      setTodayStr(activeToday);
+    }
+    const updated = StorageService.addWater(amount, activeToday);
     setWaterMl(updated);
     setBadges(StorageService.getBadges());
     syncToCloud();
   };
 
   const handleResetWater = () => {
-    StorageService.addWater(-waterMl, todayStr);
+    const activeToday = formatLocalDate();
+    if (activeToday !== todayStr) {
+      setTodayStr(activeToday);
+    }
+    StorageService.setWater(0, activeToday);
     setWaterMl(0);
     syncToCloud();
   };
