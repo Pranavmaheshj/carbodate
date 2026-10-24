@@ -196,7 +196,8 @@ export function estimateActivityCalories(
   intensity: 'default' | 'moderate' | 'vigorous' = 'default',
   inclinePercent: number = 0,
   elevationGainMeters: number = 0,
-  steps: number = 0
+  steps: number = 0,
+  distanceMeters?: number
 ): number {
   if (durationMinutes <= 0 || weightKg <= 0) return 0;
   let met = MET_VALUES[type]?.[intensity] || 7.0;
@@ -208,20 +209,45 @@ export function estimateActivityCalories(
   let calories = met * weightKg * hours;
 
   // Exact gravitational work for elevation climb:
-  // W = m * g * h (Joules). With 24% human muscular efficiency:
+  // W = m * g * h (Joules). With ~24% human muscular efficiency:
   // vertical Kcal = (weightKg * 9.80665 * elevationGainMeters) / (4184 * 0.24) ~ 0.00976 * weightKg * elevationGainMeters
   if (elevationGainMeters > 0) {
     const verticalCalories = weightKg * elevationGainMeters * 0.00976;
     calories += verticalCalories;
   }
 
-  // If steps are available and activity is walking/running, incorporate step work:
-  if (steps > 0 && (type === 'walking' || type === 'running' || type === 'jogging')) {
+  // Exact distance-based energetic expenditure (Compendium of Physical Activities & ACSM):
+  if (distanceMeters && distanceMeters > 0) {
+    const distanceKm = distanceMeters / 1000;
+    let distKcal = 0;
+    if (type === 'running') {
+      // ACSM Running: ~1.03 kcal/kg/km
+      distKcal = distanceKm * weightKg * 1.03;
+    } else if (type === 'jogging') {
+      // ACSM Jogging: ~0.92 kcal/kg/km
+      distKcal = distanceKm * weightKg * 0.92;
+    } else if (type === 'walking') {
+      // ACSM Walking: ~0.73 kcal/kg/km
+      distKcal = distanceKm * weightKg * 0.73;
+    } else if (type === 'cycling') {
+      // Outdoor Cycling average: ~0.35 kcal/kg/km
+      distKcal = distanceKm * weightKg * 0.35;
+    }
+
+    if (distKcal > 0) {
+      // Blend 60% distance work and 40% duration MET to account for speed variation and physiological demand
+      calories = (distKcal * 0.6) + (calories * 0.4);
+      if (elevationGainMeters > 0) {
+        calories += weightKg * elevationGainMeters * 0.00976;
+      }
+    }
+  } else if (steps > 0 && (type === 'walking' || type === 'running' || type === 'jogging')) {
+    // If steps are available and activity is walking/running, incorporate step work:
     const stepKcal = steps * (weightKg / 70) * (type === 'walking' ? 0.038 : 0.052);
     calories = Math.max(calories, (calories * 0.65) + (stepKcal * 0.35));
   }
 
-  return Math.round(calories);
+  return Math.max(0, Math.round(calories));
 }
 
 /**

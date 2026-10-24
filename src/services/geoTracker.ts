@@ -72,6 +72,8 @@ export class GeoTrackerService {
   private startTimeMs: number | null = null;
   private totalPausedMs: number = 0;
   private pauseStartTimeMs: number | null = null;
+  private autoPauseStartTimeMs: number | null = null;
+  private lastMovementTimeMs: number = Date.now();
   private visibilityListenerAttached: boolean = false;
 
   public subscribe(listener: TrackerUpdateListener): () => void {
@@ -140,6 +142,8 @@ export class GeoTrackerService {
     this.startTimeMs = null;
     this.totalPausedMs = 0;
     this.pauseStartTimeMs = null;
+    this.autoPauseStartTimeMs = null;
+    this.lastMovementTimeMs = Date.now();
 
     this.state = {
       status: 'idle',
@@ -172,8 +176,10 @@ export class GeoTrackerService {
     if (type) this.state.activityType = type;
     this.isSimulated = simulated;
     this.startTimeMs = Date.now();
+    this.lastMovementTimeMs = Date.now();
     this.totalPausedMs = 0;
     this.pauseStartTimeMs = null;
+    this.autoPauseStartTimeMs = null;
 
     this.state = {
       status: 'tracking',
@@ -211,11 +217,41 @@ export class GeoTrackerService {
     this.notify();
   }
 
+  // Trigger auto-pause when user stops walking/running/jogging/cycling
+  private triggerAutoPause(now: number = Date.now()): void {
+    if (this.state.isAutoPaused || this.state.status !== 'tracking') return;
+    this.state.isAutoPaused = true;
+    this.autoPauseStartTimeMs = this.lastMovementTimeMs || now;
+    this.state.currentSpeedKmh = 0;
+    this.state.cadenceSpm = 0;
+    this.notify();
+  }
+
+  // Trigger auto-resume when movement resumes
+  private triggerAutoResume(now: number = Date.now()): void {
+    if (!this.state.isAutoPaused || this.state.status !== 'tracking') return;
+    if (this.autoPauseStartTimeMs) {
+      this.totalPausedMs += Math.max(0, now - this.autoPauseStartTimeMs);
+      this.autoPauseStartTimeMs = null;
+    }
+    this.state.isAutoPaused = false;
+    this.lastMovementTimeMs = now;
+    this.stationaryCounter = 0;
+    this.syncWallClockTime();
+    this.notify();
+  }
+
   // Pause explicitly
   public pause(): void {
     if (this.state.status === 'tracking') {
+      const now = Date.now();
+      if (this.state.isAutoPaused && this.autoPauseStartTimeMs) {
+        this.totalPausedMs += Math.max(0, now - this.autoPauseStartTimeMs);
+        this.autoPauseStartTimeMs = null;
+      }
+      this.state.isAutoPaused = false;
       this.state.status = 'paused';
-      this.pauseStartTimeMs = Date.now();
+      this.pauseStartTimeMs = now;
       this.stopTimer();
       this.notify();
     }
@@ -224,11 +260,14 @@ export class GeoTrackerService {
   // Resume explicitly
   public resume(): void {
     if (this.state.status === 'paused') {
+      const now = Date.now();
       this.state.status = 'tracking';
       this.state.isAutoPaused = false;
+      this.autoPauseStartTimeMs = null;
+      this.lastMovementTimeMs = now;
       this.stationaryCounter = 0;
       if (this.pauseStartTimeMs) {
-        this.totalPausedMs += Date.now() - this.pauseStartTimeMs;
+        this.totalPausedMs += Math.max(0, now - this.pauseStartTimeMs);
         this.pauseStartTimeMs = null;
       }
       this.startTimer();
@@ -266,6 +305,12 @@ export class GeoTrackerService {
 
   // Finish activity & summarize final splits
   public async finish(): Promise<TrackerState> {
+    const now = Date.now();
+    if (this.state.isAutoPaused && this.autoPauseStartTimeMs) {
+      this.totalPausedMs += Math.max(0, now - this.autoPauseStartTimeMs);
+      this.autoPauseStartTimeMs = null;
+      this.state.isAutoPaused = false;
+    }
     this.stopNativeGeolocation();
     this.stopSimulation();
     this.stopTimer();
@@ -292,28 +337,48 @@ export class GeoTrackerService {
   }
 
   private syncWallClockTime(): void {
-    if (this.state.status === 'tracking' && !this.state.isAutoPaused && this.startTimeMs) {
-      const now = Date.now();
-      const effectiveNow = this.pauseStartTimeMs ? this.pauseStartTimeMs : now;
-      this.state.durationSeconds = Math.max(
-        0,
-        Math.floor((effectiveNow - this.startTimeMs - this.totalPausedMs) / 1000)
-      );
-
-      // Recalculate average pace
-      if (this.state.distanceMeters > 30) {
-        this.state.currentPaceSecPerKm =
-          (this.state.durationSeconds / this.state.distanceMeters) * 1000;
-      }
-
-      // Clean up old step timestamps older than 6 seconds to maintain live cadence
-      this.recentStepTimestamps = this.recentStepTimestamps.filter((t) => now - t <= 6000);
-      if (this.state.activityType !== 'cycling') {
-        this.state.cadenceSpm = Math.round((this.recentStepTimestamps.length / 6) * 60);
-      }
-
-      this.notify();
+    if (this.state.status !== 'tracking' || !this.startTimeMs) {
+      return;
     }
+
+    const now = Date.now();
+
+    // Stillness Detection for Outdoor Activities:
+    // If not currently auto-paused and no movement for >= 3500ms, auto-pause active timer
+    if (!this.state.isAutoPaused) {
+      const timeSinceMovement = now - this.lastMovementTimeMs;
+      if (timeSinceMovement >= 3500) {
+        this.triggerAutoPause(now);
+        return;
+      }
+    }
+
+    // While auto-paused, moving duration and speed stay frozen
+    if (this.state.isAutoPaused) {
+      this.state.currentSpeedKmh = 0;
+      this.state.cadenceSpm = 0;
+      return;
+    }
+
+    const effectiveNow = this.pauseStartTimeMs ? this.pauseStartTimeMs : now;
+    this.state.durationSeconds = Math.max(
+      0,
+      Math.floor((effectiveNow - this.startTimeMs - this.totalPausedMs) / 1000)
+    );
+
+    // Recalculate average pace
+    if (this.state.distanceMeters > 30) {
+      this.state.currentPaceSecPerKm =
+        (this.state.durationSeconds / this.state.distanceMeters) * 1000;
+    }
+
+    // Clean up old step timestamps older than 6 seconds to maintain live cadence
+    this.recentStepTimestamps = this.recentStepTimestamps.filter((t) => now - t <= 6000);
+    if (this.state.activityType !== 'cycling') {
+      this.state.cadenceSpm = Math.round((this.recentStepTimestamps.length / 6) * 60);
+    }
+
+    this.notify();
   }
 
   private startTimer(): void {
@@ -343,7 +408,7 @@ export class GeoTrackerService {
 
   // Physical motion step counting with strict GPS cross-validation to eliminate fake shaking steps
   private handleDeviceMotion = (e: DeviceMotionEvent) => {
-    if (this.state.status !== 'tracking' || this.state.isAutoPaused) return;
+    if (this.state.status !== 'tracking') return;
     if (this.state.activityType === 'cycling') return; // Cycling doesn't count walking steps
 
     const acc = e.accelerationIncludingGravity || e.acceleration;
@@ -361,7 +426,7 @@ export class GeoTrackerService {
       // ANTI-SHAKE MAP CROSS-VALIDATION:
       // If user is stationary on the map (distance < 2.5m or speed < 0.7 km/h),
       // shaking phone or wearable will NOT count as steps!
-      const isStationaryOnMap = this.state.distanceMeters < 2.5 || this.state.currentSpeedKmh < 0.7;
+      const isStationaryOnMap = this.state.distanceMeters < 2.5 || (this.state.currentSpeedKmh < 0.7 && !this.state.isAutoPaused);
       const expectedSteps = Math.round(this.state.distanceMeters / strideMeters);
       const maxAllowedSteps = expectedSteps + 2;
 
@@ -374,6 +439,12 @@ export class GeoTrackerService {
       this.state.steps += 1;
       this.lastAccelTime = now;
       this.recentStepTimestamps.push(now);
+
+      // User is moving by taking steps: record movement & auto-resume if paused!
+      this.lastMovementTimeMs = now;
+      if (this.state.isAutoPaused) {
+        this.triggerAutoResume(now);
+      }
 
       this.notify();
     }
@@ -434,21 +505,22 @@ export class GeoTrackerService {
       : 0;
     this.state.currentSpeedKmh = Math.round(calcSpeedKmh * 10) / 10;
 
-    // Fast Auto-Resume / Auto-Pause (lenient 6-second threshold, never discards moving distance)
-    const pauseThresholdKmh = this.state.activityType === 'cycling' ? 2.0 : 0.6;
-    if (this.state.isAutoPaused) {
-      if (calcSpeedKmh >= 0.8 || distanceDelta >= 0.8) {
-        this.state.isAutoPaused = false;
-        this.stationaryCounter = 0;
-      }
-    } else if (calcSpeedKmh < pauseThresholdKmh && distanceDelta < 0.5) {
-      this.stationaryCounter += 1;
-      if (this.stationaryCounter >= this.autoPauseThresholdSec) {
-        this.state.isAutoPaused = true;
+    // Movement evaluation for responsive auto-pause & auto-resume
+    const movingSpeedThreshold = this.state.activityType === 'cycling' ? 2.2 : 0.8;
+    const isMovingForward = calcSpeedKmh >= movingSpeedThreshold || distanceDelta >= 0.7;
+
+    const now = Date.now();
+    if (isMovingForward) {
+      this.lastMovementTimeMs = now;
+      this.stationaryCounter = 0;
+      if (this.state.isAutoPaused) {
+        this.triggerAutoResume(now);
       }
     } else {
-      this.stationaryCounter = 0;
-      this.state.isAutoPaused = false;
+      this.stationaryCounter += 1;
+      if (!this.state.isAutoPaused && (this.stationaryCounter >= 2 || now - this.lastMovementTimeMs >= 3500)) {
+        this.triggerAutoPause(now);
+      }
     }
 
     // Elevation Gain Calculation
@@ -594,7 +666,10 @@ export class GeoTrackerService {
     let angle = 0;
 
     this.simTimerId = window.setInterval(() => {
-      if (this.state.status !== 'tracking' || this.state.isAutoPaused) return;
+      if (this.state.status !== 'tracking') return;
+      if (this.state.isAutoPaused) {
+        this.triggerAutoResume(Date.now());
+      }
 
       angle += 0.04;
       currLat += Math.sin(angle) * 0.00018 + (Math.random() - 0.5) * 0.00002;

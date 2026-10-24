@@ -91,7 +91,8 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           'default',
           0,
           state.elevationGainMeters,
-          state.steps
+          state.steps,
+          state.distanceMeters
         );
         backgroundWorkout.updateMetrics({
           title: `Outdoor ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`,
@@ -295,7 +296,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
     }, 3500);
   };
 
-  // Duration and Calorie calculation (Incorporating Elevation & Steps)
+  // Duration and Calorie calculation (Incorporating Distance, Elevation & Steps)
   const durationMins = trackerState.durationSeconds / 60;
   const liveCalories = estimateActivityCalories(
     selectedType,
@@ -304,7 +305,8 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
     'default',
     0,
     trackerState.elevationGainMeters,
-    trackerState.steps
+    trackerState.steps,
+    trackerState.distanceMeters
   );
 
   const handleFinish = async () => {
@@ -342,7 +344,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
       endTime: new Date().toISOString(),
       durationSeconds: finalState.durationSeconds,
       distanceMeters: Math.round(finalState.distanceMeters),
-      caloriesBurned: Math.max(liveCalories, 10),
+      caloriesBurned: liveCalories,
       elevationGainMeters: Math.round(finalState.elevationGainMeters),
       avgSpeedKmh: Math.round(avgSpeed * 100) / 100,
       avgPaceMinPerKm: formatPace(avgPaceSec),
@@ -408,10 +410,16 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
               </span>
 
               {/* Status Pill */}
-              {isActivelyTracking && (
+              {isActivelyTracking && !trackerState.isAutoPaused && (
                 <span className="flex items-center gap-1 bg-lime-500/20 text-lime-700 dark:text-lime-300 text-[10px] font-mono font-black px-2 py-0.5 rounded-full">
                   <span className="w-2 h-2 rounded-full bg-lime-500 animate-ping" />
                   LIVE GPS
+                </span>
+              )}
+              {isActivelyTracking && trackerState.isAutoPaused && (
+                <span className="flex items-center gap-1.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-heading font-black px-2.5 py-0.5 rounded-full animate-pulse border border-amber-500/30">
+                  <Pause className="w-2.5 h-2.5 fill-current" />
+                  AUTO-PAUSED
                 </span>
               )}
               {isPausedSession && (
@@ -483,7 +491,7 @@ export const LiveGpsTracker: React.FC<LiveGpsTrackerProps> = ({
           >
             <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
             <Pause className="w-3.5 h-3.5 fill-current text-amber-800" />
-            <span>Auto-Paused (Will resume when you walk)</span>
+            <span>Auto-Paused (Will resume when you move)</span>
           </motion.div>
         )}
 
